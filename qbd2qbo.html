@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QBO Rules Generator</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --primary: #4f46e5;
+  --primary-light: #818cf8;
+  --primary-bg: #eef2ff;
+  --accent: #06b6d4;
+  --accent-light: #67e8f9;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-500: #6b7280;
+  --gray-700: #374151;
+  --gray-900: #111827;
+  --radius: 12px;
+  --shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.04);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #e0e7ff 0%, #cffafe 50%, #fce7f3 100%);
+  min-height: 100vh;
+  color: var(--gray-900);
+}
+.app-header {
+  background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 50%, var(--accent) 100%);
+  color: white;
+  padding: 28px 0 24px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(79,70,229,.25);
+}
+.app-header h1 { font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
+.app-header p { opacity: .85; margin-top: 6px; font-size: 15px; }
+.container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
+
+/* Steps nav */
+.steps-nav {
+  display: flex; gap: 4px; margin-bottom: 28px;
+  background: white; border-radius: var(--radius); padding: 6px;
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+.step-btn {
+  flex: 1; padding: 12px 8px; border: none; background: transparent;
+  border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
+  color: var(--gray-500); transition: all .2s; white-space: nowrap; min-width: 100px;
+}
+.step-btn:hover { background: var(--gray-100); color: var(--gray-700); }
+.step-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(79,70,229,.3); }
+.step-btn.done { color: var(--success); }
+.step-btn .num {
+  display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 11px; margin-right: 4px;
+  background: var(--gray-200); color: var(--gray-700);
+}
+.step-btn.active .num { background: rgba(255,255,255,.25); color: white; }
+.step-btn.done .num { background: #d1fae5; color: var(--success); }
+
+/* Panels */
+.panel { display: none; }
+.panel.active { display: block; }
+.card {
+  background: white; border-radius: var(--radius); padding: 28px;
+  box-shadow: var(--shadow); margin-bottom: 20px;
+}
+.card h2 { font-size: 20px; margin-bottom: 4px; color: var(--primary); }
+.card .subtitle { color: var(--gray-500); font-size: 14px; margin-bottom: 20px; }
+
+/* Upload area */
+.upload-zone {
+  border: 2px dashed var(--primary-light); border-radius: var(--radius);
+  padding: 48px 24px; text-align: center; cursor: pointer;
+  background: var(--primary-bg); transition: all .2s;
+}
+.upload-zone:hover, .upload-zone.dragover {
+  border-color: var(--primary); background: #e0e7ff;
+  transform: translateY(-2px); box-shadow: var(--shadow-lg);
+}
+.upload-zone .icon { font-size: 48px; margin-bottom: 12px; }
+.upload-zone p { color: var(--gray-500); }
+.upload-zone .filename { color: var(--success); font-weight: 600; margin-top: 8px; }
+input[type="file"] { display: none; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 20px; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: #4338ca; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79,70,229,.3); }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #059669; }
+.btn-accent { background: var(--accent); color: white; }
+.btn-accent:hover { background: #0891b2; }
+.btn-warning { background: var(--warning); color: white; }
+.btn-warning:hover { background: #d97706; }
+.btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary-light); }
+.btn-outline:hover { background: var(--primary-bg); }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+.btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+/* Tables */
+.table-wrap {
+  overflow-x: auto; border-radius: 8px; border: 1px solid var(--gray-200);
+  max-height: 500px; overflow-y: auto;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead { position: sticky; top: 0; z-index: 2; }
+th {
+  background: linear-gradient(135deg, var(--primary), #7c3aed);
+  color: white; padding: 10px 12px; text-align: left; font-weight: 600;
+  white-space: nowrap;
+}
+td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); }
+tr:hover td { background: #faf5ff; }
+tr:nth-child(even) td { background: var(--gray-50); }
+tr:nth-child(even):hover td { background: #faf5ff; }
+.amount-neg { color: var(--danger); font-weight: 600; }
+.amount-pos { color: var(--success); font-weight: 600; }
+
+/* Stats */
+.stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.stat {
+  flex: 1; min-width: 140px; background: linear-gradient(135deg, var(--primary-bg), #dbeafe);
+  border-radius: 10px; padding: 16px; text-align: center;
+}
+.stat .val { font-size: 28px; font-weight: 700; color: var(--primary); }
+.stat .label { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+.stat.green { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+.stat.green .val { color: var(--success); }
+.stat.cyan { background: linear-gradient(135deg, #cffafe, #a5f3fc); }
+.stat.cyan .val { color: var(--accent); }
+.stat.amber { background: linear-gradient(135deg, #fef3c7, #fde68a); }
+.stat.amber .val { color: var(--warning); }
+
+/* Month tabs */
+.month-tabs {
+  display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.month-tab {
+  padding: 6px 14px; border: 2px solid var(--gray-200); border-radius: 20px;
+  background: white; cursor: pointer; font-size: 13px; font-weight: 500;
+  transition: all .15s;
+}
+.month-tab:hover { border-color: var(--primary-light); }
+.month-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* Alerts */
+.alert {
+  padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
+  font-size: 14px; display: flex; align-items: center; gap: 8px;
+}
+.alert-info { background: #dbeafe; color: #1e40af; }
+.alert-success { background: #d1fae5; color: #065f46; }
+.alert-warning { background: #fef3c7; color: #92400e; }
+
+/* Search */
+.search-box {
+  padding: 10px 14px; border: 2px solid var(--gray-200); border-radius: 8px;
+  font-size: 14px; width: 100%; max-width: 360px; transition: border-color .15s;
+}
+.search-box:focus { outline: none; border-color: var(--primary-light); }
+
+/* Rules preview */
+.rule-card {
+  background: var(--gray-50); border-radius: 8px; padding: 12px 16px;
+  margin-bottom: 8px; border-left: 4px solid var(--primary);
+}
+.rule-card .rule-name { font-weight: 700; color: var(--primary); }
+.rule-card .rule-detail { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .steps-nav { flex-wrap: wrap; }
+  .step-btn { min-width: 80px; font-size: 12px; }
+  .card { padding: 18px; }
+  .stats { flex-direction: column; }
+}
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.panel.active { animation: fadeIn .3s ease; }
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600;
+}
+.badge-blue { background: #dbeafe; color: #2563eb; }
+.badge-green { background: #d1fae5; color: #059669; }
+.badge-purple { background: #ede9fe; color: #7c3aed; }
+
+/* Editable category cell */
+.cat-edit-wrap { display: flex; align-items: center; gap: 6px; }
+.cat-edit-input {
+  padding: 4px 8px; border: 2px solid var(--primary-light); border-radius: 6px;
+  font-size: 13px; width: 220px; background: #fef3c7; outline: none;
+}
+.cat-edit-input:focus { border-color: var(--primary); background: white; }
+.cat-edit-input::placeholder { color: #d97706; font-style: italic; }
+.cat-edit-input.filled { background: #ede9fe; border-color: #a78bfa; }
+.cat-suggestions {
+  position: absolute; z-index: 100; background: white; border: 1px solid var(--gray-200);
+  border-radius: 8px; box-shadow: var(--shadow-lg); max-height: 180px; overflow-y: auto;
+  width: 260px; margin-top: 2px;
+}
+.cat-suggestions div {
+  padding: 6px 12px; cursor: pointer; font-size: 13px;
+}
+.cat-suggestions div:hover, .cat-suggestions div.active { background: var(--primary-bg); color: var(--primary); }
+td.cat-cell { position: relative; }
+
+/* Project bar */
+.project-bar {
+  display: flex; gap: 10px; align-items: center; justify-content: center;
+  margin-top: 14px;
+}
+.project-bar .btn {
+  padding: 7px 16px; font-size: 13px; border-radius: 20px;
+  background: rgba(255,255,255,.2); color: white; border: 1.5px solid rgba(255,255,255,.4);
+}
+.project-bar .btn:hover { background: rgba(255,255,255,.35); transform: translateY(-1px); }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>QBO Rules Generator</h1>
+  <p>Convert QuickBooks Desktop data to QuickBooks Online bank feed rules</p>
+  <div class="project-bar">
+    <button class="btn" onclick="exportProject()">&#128190; Export Project</button>
+    <button class="btn" onclick="document.getElementById('projectFileInput').click()">&#128194; Load Project</button>
+    <input type="file" id="projectFileInput" accept=".json" style="display:none" onchange="importProject(this)">
+  </div>
+</div>
+
+<div class="container">
+  <div class="steps-nav" id="stepsNav">
+    <button class="step-btn active" data-step="1"><span class="num">1</span>Upload QBD</button>
+    <button class="step-btn" data-step="2"><span class="num">2</span>Normalize</button>
+    <button class="step-btn" data-step="3"><span class="num">3</span>COA</button>
+    <button class="step-btn" data-step="4"><span class="num">4</span>Rules</button>
+    <button class="step-btn" data-step="5"><span class="num">5</span>Monthly</button>
+    <button class="step-btn" data-step="6"><span class="num">6</span>Bank Feed</button>
+    <button class="step-btn" data-step="7"><span class="num">7</span>Leftover Rules</button>
+  </div>
+
+  <!-- STEP 1: Upload QBD CSV -->
+  <div class="panel active" id="panel1">
+    <div class="card">
+      <h2>Step 1: Upload Transactions</h2>
+      <p class="subtitle">Upload a QBD bank register, credit card CSV, or an already-normalized CSV</p>
+      <div class="upload-zone" id="uploadZone1" onclick="document.getElementById('fileInput1').click()">
+        <div class="icon">&#128196;</div>
+        <p><strong>Click to upload</strong> or drag & drop your CSV file</p>
+        <p style="font-size:12px;color:var(--gray-500);margin-top:6px">Accepts QBD bank (Memo/Payment/Deposit), QBD credit card (Charge/Payment), or normalized (Description/Amount/Schedule C Category)</p>
+        <p class="filename" id="fileName1"></p>
+      </div>
+      <input type="file" id="fileInput1" accept=".csv,.CSV">
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btnProcess1" disabled onclick="processQBDFile()">Process File &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Normalized Table -->
+  <div class="panel" id="panel2">
+    <div class="card">
+      <h2>Step 2: Normalized Transactions</h2>
+      <p class="subtitle">Memo &rarr; Description, Account &rarr; Schedule C Category, Payment as negative, Deposit as positive</p>
+      <div class="stats" id="stats2"></div>
+      <input type="text" class="search-box" placeholder="Search transactions..." oninput="filterTable('normTable', this.value)">
+      <div class="table-wrap" style="margin-top:12px">
+        <table id="normTable"><thead></thead><tbody></tbody></table>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="downloadCSV(normalizedData, 'Normalized_Transactions.csv', ['Date','Description','Amount','Schedule C Category'])">Download CSV</button>
+        <button class="btn btn-primary" onclick="goStep(3)">Next: Generate COA &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Chart of Accounts -->
+  <div class="panel" id="panel3">
+    <div class="card">
+      <h2>Step 3: Chart of Accounts for QBO Import</h2>
+      <p class="subtitle">Extracted from your transactions, formatted for QBO import</p>
+      <div class="stats" id="stats3"></div>
+      <div class="table-wrap">
+        <table id="coaTable"><thead></thead><tbody></tbody></table>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="downloadCOA()">Download COA Import CSV</button>
+        <button class="btn btn-primary" onclick="goStep(4)">Next: Generate Rules &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: QBO Rules -->
+  <div class="panel" id="panel4">
+    <div class="card">
+      <h2>Step 4: QBO Bank Feed Rules</h2>
+      <p class="subtitle">Auto-generated rules based on your transaction patterns</p>
+      <div class="stats" id="stats4"></div>
+      <input type="text" class="search-box" placeholder="Search rules..." oninput="filterRules(this.value)">
+      <div id="rulesPreview" style="margin-top:12px;max-height:500px;overflow-y:auto"></div>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="downloadRulesXLS(true)">Download Rules XLS (with Payee)</button>
+        <button class="btn btn-accent" onclick="downloadRulesXLS(false)">Download Rules XLS (without Payee)</button>
+        <button class="btn btn-primary" onclick="goStep(5)">Next: Monthly Split &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5: Monthly Split -->
+  <div class="panel" id="panel5">
+    <div class="card">
+      <h2>Step 5: Monthly Transaction Tables</h2>
+      <p class="subtitle">Split into monthly tables for month-by-month import</p>
+      <div class="month-tabs" id="monthTabs"></div>
+      <div class="stats" id="stats5"></div>
+      <div class="table-wrap">
+        <table id="monthTable"><thead></thead><tbody></tbody></table>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-success" id="btnDownloadMonth" onclick="downloadCurrentMonth()">Download Current Month CSV</button>
+        <button class="btn btn-accent" onclick="downloadAllMonths()">Download All Months (ZIP-like)</button>
+        <button class="btn btn-primary" onclick="goStep(6)">Next: Bank Feed Upload &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 6: Upload Bank Feed Leftovers -->
+  <div class="panel" id="panel6">
+    <div class="card">
+      <h2>Step 6: Upload Unclassified Bank Feed Transactions</h2>
+      <p class="subtitle">Upload the exported CSV from QBO bank feed (e.g. U.S._Bank (3).csv) for leftover transactions</p>
+      <div class="upload-zone" id="uploadZone2" onclick="document.getElementById('fileInput2').click()">
+        <div class="icon">&#128202;</div>
+        <p><strong>Click to upload</strong> or drag & drop the bank feed CSV</p>
+        <p class="filename" id="fileName2"></p>
+      </div>
+      <input type="file" id="fileInput2" accept=".csv,.CSV">
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btnProcess2" disabled onclick="processBankFeedFile()">Process & Lookup Categories &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 7: Leftover Rules -->
+  <div class="panel" id="panel7">
+    <div class="card">
+      <h2>Step 7: Leftover Transaction Rules</h2>
+      <p class="subtitle">Normalized leftover transactions with categories looked up from original data, plus generated rules</p>
+      <div class="stats" id="stats7"></div>
+      <div class="alert alert-info" id="lookupAlert"></div>
+      <input type="text" class="search-box" placeholder="Search leftovers..." oninput="filterTable('leftoverTable', this.value)">
+      <div class="table-wrap" style="margin-top:12px">
+        <table id="leftoverTable"><thead></thead><tbody></tbody></table>
+      </div>
+      <h3 style="margin:20px 0 10px;color:var(--primary)">Generated Rules for Leftovers</h3>
+      <div id="leftoverRulesPreview" style="max-height:400px;overflow-y:auto"></div>
+      <div class="btn-group">
+        <button class="btn btn-success" onclick="downloadCSV(leftoverNormalized, 'Leftover_Normalized.csv', ['Date','Description','Amount','Schedule C Category'])">Download Normalized CSV</button>
+        <button class="btn btn-warning" onclick="downloadLeftoverRulesXLS(true)">Leftover Rules XLS (with Payee)</button>
+        <button class="btn btn-outline" onclick="downloadLeftoverRulesXLS(false)">Leftover Rules XLS (without Payee)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let normalizedData = [];      // [{Date, Description, Amount, 'Schedule C Category'}]
+let coaData = [];             // [{Account Number, Account Name, Type, Detail Type}]
+let rulesData = [];           // [{Rule Name, Rule Conditions, Rule Outputs}]
+let monthlyData = {};         // { '2024-01': [...], ... }
+let currentMonth = '';
+let leftoverNormalized = [];
+let leftoverRules = [];
+let allRulesData = [];        // combined for preview filter
+
+// ═══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function goStep(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel' + n).classList.add('active');
+  document.querySelector(`.step-btn[data-step="${n}"]`).classList.add('active');
+  // mark prior steps done
+  document.querySelectorAll('.step-btn').forEach(b => {
+    if (parseInt(b.dataset.step) < n) b.classList.add('done');
+  });
+}
+document.querySelectorAll('.step-btn').forEach(btn => {
+  btn.addEventListener('click', () => goStep(parseInt(btn.dataset.step)));
+});
+
+// ═══════════════════════════════════════════════════════════
+//  FILE UPLOAD HANDLERS
+// ═══════════════════════════════════════════════════════════
+function setupUpload(zoneId, inputId, fileNameId, btnId) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  const fnEl = document.getElementById(fileNameId);
+  const btn = document.getElementById(btnId);
+
+  ['dragover','dragenter'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(e => zone.addEventListener(e, () => zone.classList.remove('dragover')));
+  zone.addEventListener('drop', ev => {
+    ev.preventDefault();
+    if (ev.dataTransfer.files.length) { input.files = ev.dataTransfer.files; onFile(); }
+  });
+  input.addEventListener('change', onFile);
+
+  function onFile() {
+    if (input.files.length) {
+      fnEl.textContent = input.files[0].name;
+      btn.disabled = false;
+    }
+  }
+}
+setupUpload('uploadZone1', 'fileInput1', 'fileName1', 'btnProcess1');
+setupUpload('uploadZone2', 'fileInput2', 'fileName2', 'btnProcess2');
+
+// ═══════════════════════════════════════════════════════════
+//  CSV PARSER (handles quoted fields, commas inside quotes)
+// ═══════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const rows = [];
+  let i = 0;
+  while (i < text.length) {
+    const row = [];
+    while (i < text.length) {
+      let val = '';
+      // skip whitespace (but not newlines)
+      while (i < text.length && text[i] === ' ') i++;
+      if (i < text.length && text[i] === '"') {
+        // quoted field
+        i++; // skip opening quote
+        while (i < text.length) {
+          if (text[i] === '"') {
+            if (i + 1 < text.length && text[i + 1] === '"') {
+              val += '"'; i += 2;
+            } else {
+              i++; break; // closing quote
+            }
+          } else {
+            val += text[i]; i++;
+          }
+        }
+        // skip to comma or newline
+        while (i < text.length && text[i] !== ',' && text[i] !== '\n' && text[i] !== '\r') i++;
+      } else {
+        // unquoted field
+        while (i < text.length && text[i] !== ',' && text[i] !== '\n' && text[i] !== '\r') {
+          val += text[i]; i++;
+        }
+      }
+      row.push(val.trim());
+      if (i < text.length && text[i] === ',') { i++; continue; }
+      break;
+    }
+    // skip newline
+    if (i < text.length && text[i] === '\r') i++;
+    if (i < text.length && text[i] === '\n') i++;
+    if (row.length > 0 && !(row.length === 1 && row[0] === '')) rows.push(row);
+  }
+  return rows;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STEP 1→2: PROCESS QBD FILE
+// ═══════════════════════════════════════════════════════════
+function processQBDFile() {
+  const file = document.getElementById('fileInput1').files[0];
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let text = e.target.result;
+    // Remove BOM if present
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+    const allRows = parseCSV(text);
+
+    // Detect format: normalized vs QBD
+    let headerIdx = -1;
+    let isNormalized = false;
+
+    // Check for normalized format first (Date, Description, Amount, Schedule C Category)
+    for (let i = 0; i < Math.min(allRows.length, 10); i++) {
+      const lower = allRows[i].map(c => c.toLowerCase().trim());
+      if (lower.includes('date') && lower.includes('description') &&
+          lower.includes('amount') && lower.some(c => c.includes('schedule c') || c.includes('category'))) {
+        headerIdx = i;
+        isNormalized = true;
+        break;
+      }
+    }
+
+    // If not normalized, look for QBD bank or credit card format
+    let isCreditCard = false;
+    if (!isNormalized) {
+      for (let i = 0; i < Math.min(allRows.length, 10); i++) {
+        if (allRows[i].some(c => c === 'Date') && allRows[i].some(c => c === 'Charge')) {
+          headerIdx = i; isCreditCard = true; break;
+        }
+        if (allRows[i].some(c => c === 'Date') && allRows[i].some(c => c === 'Memo')) {
+          headerIdx = i; break;
+        }
+      }
+    }
+
+    if (headerIdx === -1) { alert('Could not find a recognized header row.\nExpected:\n• QBD bank (Date/Memo/Account/Payment/Deposit)\n• QBD credit card (Date/Payee/Account/Charge/Payment)\n• Normalized (Date/Description/Amount/Schedule C Category)'); return; }
+
+    normalizedData = [];
+
+    if (isNormalized) {
+      // Already normalized — load directly
+      const headers = allRows[headerIdx].map(c => c.trim());
+      const hLower = headers.map(c => c.toLowerCase());
+      const dateIdx = hLower.indexOf('date');
+      const descIdx = hLower.indexOf('description');
+      const amtIdx = hLower.indexOf('amount');
+      const catIdx = hLower.findIndex(c => c.includes('schedule c') || c.includes('category'));
+
+      for (let i = headerIdx + 1; i < allRows.length; i++) {
+        const r = allRows[i];
+        if (!r[dateIdx]) continue;
+        normalizedData.push({
+          'Date': r[dateIdx],
+          'Description': r[descIdx] || '',
+          'Amount': parseAmount(r[amtIdx]),
+          'Schedule C Category': r[catIdx] || ''
+        });
+      }
+    } else if (isCreditCard) {
+      // Credit card format: Date, Ref., Payee, Account, Memo, Charge, C, Payment, Balance
+      const headers = allRows[headerIdx];
+      const dateIdx = headers.indexOf('Date');
+      const payeeIdx = headers.indexOf('Payee');
+      const accountIdx = headers.indexOf('Account');
+      const memoIdx = headers.indexOf('Memo');
+      const chargeIdx = headers.indexOf('Charge');
+      const paymentIdx = headers.indexOf('Payment');
+
+      for (let i = headerIdx + 1; i < allRows.length; i++) {
+        const r = allRows[i];
+        if (!r[dateIdx] || !r[dateIdx].match(/\d{2}\/\d{2}\/\d{4}/)) continue;
+
+        const charge = parseAmount(r[chargeIdx]);
+        const payment = parseAmount(r[paymentIdx]);
+        let amount = 0;
+        if (charge > 0) amount = -charge;    // Charge as negative (expense)
+        else if (payment > 0) amount = payment; // Payment as positive (paying off card)
+
+        // Description: prefer Memo, fall back to Payee
+        const desc = (r[memoIdx] || '').trim() || (r[payeeIdx] || '').trim();
+
+        // Account: strip QBD number prefix like "54000 · Job Expenses:54300 · Job Materials"
+        let account = (r[accountIdx] || '').trim();
+        if (account === '-split-') {
+          // For split transactions, use Payee as a hint for category
+          account = (r[payeeIdx] || '').trim();
+        }
+        // Strip "12345 · " number prefixes from each segment
+        account = account.split(':').map(seg => seg.replace(/^\d+\s*[·�]\s*/, '').trim()).join(':');
+
+        normalizedData.push({
+          'Date': r[dateIdx],
+          'Description': desc,
+          'Amount': amount,
+          'Schedule C Category': account
+        });
+      }
+    } else {
+      // QBD bank format — normalize
+      const headers = allRows[headerIdx];
+      const dateIdx = headers.indexOf('Date');
+      const memoIdx = headers.indexOf('Memo');
+      const accountIdx = headers.indexOf('Account');
+      const paymentIdx = headers.indexOf('Payment');
+      const depositIdx = headers.indexOf('Deposit');
+
+      for (let i = headerIdx + 1; i < allRows.length; i++) {
+        const r = allRows[i];
+        if (!r[dateIdx] || !r[dateIdx].match(/\d{2}\/\d{2}\/\d{4}/)) continue;
+
+        const payment = parseAmount(r[paymentIdx]);
+        const deposit = parseAmount(r[depositIdx]);
+        let amount = 0;
+        if (payment > 0) amount = -payment;  // Payment as negative
+        else if (deposit > 0) amount = deposit; // Deposit as positive
+
+        normalizedData.push({
+          'Date': r[dateIdx],
+          'Description': r[memoIdx] || '',
+          'Amount': amount,
+          'Schedule C Category': r[accountIdx] || ''
+        });
+      }
+    }
+
+    // Render step 2
+    renderNormalizedTable();
+    generateCOA();
+    generateRules();
+    splitMonthly();
+    goStep(2);
+  };
+  reader.readAsText(file);
+}
+
+function parseAmount(s) {
+  if (!s) return 0;
+  return parseFloat(s.replace(/[,$]/g, '')) || 0;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STEP 2: RENDER NORMALIZED TABLE
+// ═══════════════════════════════════════════════════════════
+function renderNormalizedTable() {
+  const table = document.getElementById('normTable');
+  const thead = table.querySelector('thead');
+  const tbody = table.querySelector('tbody');
+  thead.innerHTML = '<tr><th>#</th><th>Date</th><th>Description</th><th>Amount</th><th>Schedule C Category</th></tr>';
+  tbody.innerHTML = normalizedData.map((r, i) => {
+    const cls = r.Amount < 0 ? 'amount-neg' : 'amount-pos';
+    return `<tr>
+      <td>${i + 1}</td>
+      <td>${r.Date}</td>
+      <td>${escHtml(r.Description)}</td>
+      <td class="${cls}">${formatMoney(r.Amount)}</td>
+      <td><span class="badge badge-purple">${escHtml(r['Schedule C Category'])}</span></td>
+    </tr>`;
+  }).join('');
+
+  // Stats
+  const totalTx = normalizedData.length;
+  const totalSpent = normalizedData.filter(r => r.Amount < 0).reduce((s, r) => s + r.Amount, 0);
+  const totalIncome = normalizedData.filter(r => r.Amount > 0).reduce((s, r) => s + r.Amount, 0);
+  const cats = new Set(normalizedData.map(r => r['Schedule C Category']));
+  document.getElementById('stats2').innerHTML = `
+    <div class="stat"><div class="val">${totalTx}</div><div class="label">Transactions</div></div>
+    <div class="stat green"><div class="val">${formatMoney(totalIncome)}</div><div class="label">Total Income</div></div>
+    <div class="stat amber"><div class="val">${formatMoney(totalSpent)}</div><div class="label">Total Expenses</div></div>
+    <div class="stat cyan"><div class="val">${cats.size}</div><div class="label">Categories</div></div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STEP 3: GENERATE CHART OF ACCOUNTS
+// ═══════════════════════════════════════════════════════════
+const ACCOUNT_TYPE_MAP = {
+  'Advertising and Promotion': ['Expense', 'Advertising/Promotional'],
+  'Auto Lease': ['Expense', 'Auto'],
+  'Bank Charges and Processing Fee': ['Expense', 'Bank Charges'],
+  'Car and Truck Expenses': ['Expense', 'Auto'],
+  'Charitable Contributions': ['Expense', 'Charitable Contributions'],
+  'Dues & Subscriptions': ['Expense', 'Dues & Subscriptions'],
+  'Insurance Expense': ['Expense', 'Insurance'],
+  'Meals': ['Expense', 'Entertainment Meals'],
+  'Meals and Entertainment': ['Expense', 'Entertainment Meals'],
+  'Office Expense': ['Expense', 'Office/General Administrative Expenses'],
+  'Outside Services': ['Expense', 'Other Miscellaneous Service Cost'],
+  'Owners Draw': ['Equity', 'Partner Distributions'],
+  'Paid Checks': ['Expense', 'Other Miscellaneous Expense'],
+  'Postage': ['Expense', 'Shipping, Freight & Delivery'],
+  'Professional Fees': ['Expense', 'Legal & Professional Fees'],
+  'Rent Expense': ['Expense', 'Rent or Lease of Buildings'],
+  'Sales': ['Income', 'Sales of Product Income'],
+  'Subcontractors': ['Expense', 'Other Miscellaneous Service Cost'],
+  'Taxes and Licenses': ['Expense', 'Taxes Paid'],
+  'Telephone Expense': ['Expense', 'Utilities'],
+  'Travel Expense': ['Expense', 'Travel'],
+  'Utilities': ['Expense', 'Utilities'],
+  'Vehicle Loan Payments': ['Other Expense', 'Other Miscellaneous Expense'],
+  'Opening Balance Equity': ['Equity', 'Opening Balance Equity'],
+};
+
+function getAccountType(accountName) {
+  const topLevel = accountName.split(':')[0].trim();
+  if (ACCOUNT_TYPE_MAP[topLevel]) return ACCOUNT_TYPE_MAP[topLevel];
+  const lower = topLevel.toLowerCase();
+  if (lower.includes('expense')) return ['Expense', 'Other Miscellaneous Expense'];
+  if (lower.includes('income') || lower.includes('sales') || lower.includes('revenue')) return ['Income', 'Sales of Product Income'];
+  if (lower.includes('draw') || lower.includes('equity')) return ['Equity', 'Partner Distributions'];
+  if (lower.includes('loan')) return ['Other Expense', 'Other Miscellaneous Expense'];
+  return ['Expense', 'Other Miscellaneous Expense'];
+}
+
+function generateCOA() {
+  const acctSet = new Set();
+  normalizedData.forEach(r => {
+    const cat = r['Schedule C Category'].trim();
+    if (cat && cat !== 'Opening Balance Equity') {
+      // Add full account and all parents
+      const parts = cat.split(':');
+      for (let i = 1; i <= parts.length; i++) {
+        acctSet.add(parts.slice(0, i).join(':'));
+      }
+    }
+  });
+
+  const accounts = Array.from(acctSet).sort((a, b) => {
+    const da = a.split(':').length, db = b.split(':').length;
+    return da !== db ? da - db : a.localeCompare(b);
+  });
+
+  coaData = accounts.map(acct => {
+    const [type, detail] = getAccountType(acct);
+    return { 'Account Number': '', 'Account Name': acct, 'Type': type, 'Detail Type': detail };
+  });
+
+  // Render
+  const table = document.getElementById('coaTable');
+  table.querySelector('thead').innerHTML = '<tr><th>#</th><th>Account Name</th><th>Type</th><th>Detail Type</th></tr>';
+  table.querySelector('tbody').innerHTML = coaData.map((r, i) => `<tr>
+    <td>${i + 1}</td>
+    <td>${escHtml(r['Account Name'])}</td>
+    <td><span class="badge badge-blue">${r.Type}</span></td>
+    <td>${escHtml(r['Detail Type'])}</td>
+  </tr>`).join('');
+
+  // Stats
+  const types = {};
+  coaData.forEach(r => { types[r.Type] = (types[r.Type] || 0) + 1; });
+  document.getElementById('stats3').innerHTML = `
+    <div class="stat"><div class="val">${coaData.length}</div><div class="label">Total Accounts</div></div>
+    ${Object.entries(types).map(([t, c]) => `<div class="stat cyan"><div class="val">${c}</div><div class="label">${t}</div></div>`).join('')}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STEP 4: GENERATE QBO RULES
+// ═══════════════════════════════════════════════════════════
+function generateRules() {
+  // Group by description keyword -> category
+  // Extract a meaningful keyword from each description and map to category
+  const descCatMap = {};  // keyword -> { category, direction, count }
+
+  normalizedData.forEach(r => {
+    const desc = r.Description.trim();
+    const cat = r['Schedule C Category'].trim();
+    if (!desc || !cat || cat === 'Opening Balance Equity') return;
+
+    const keyword = extractKeyword(desc);
+    if (!keyword || keyword.length < 3) return;
+
+    if (!descCatMap[keyword]) {
+      descCatMap[keyword] = { category: cat, direction: r.Amount < 0 ? -1 : 1, count: 0 };
+    }
+    descCatMap[keyword].count++;
+  });
+
+  rulesData = [];
+  const seen = new Set();
+
+  Object.entries(descCatMap).forEach(([keyword, info]) => {
+    const key = keyword.toUpperCase() + '|' + info.category;
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    const conditions = {
+      ruleConditions: [
+        { ruleType: 10, value: String(info.direction) },
+        { ruleType: 6, value: keyword }
+      ],
+      isAndRule: false
+    };
+
+    const outputs = {
+      ruleActions: [
+        { actionType: 0, value: info.category },
+        { actionType: 5, value: keyword },
+        { actionType: 11, value: [] }
+      ]
+    };
+
+    rulesData.push({
+      'Rule Name': keyword,
+      'Rule Conditions': JSON.stringify(conditions),
+      'Rule Outputs': JSON.stringify(outputs),
+      _category: info.category,
+      _count: info.count
+    });
+  });
+
+  // Sort by count descending
+  rulesData.sort((a, b) => b._count - a._count);
+
+  renderRulesPreview(rulesData, 'rulesPreview');
+
+  document.getElementById('stats4').innerHTML = `
+    <div class="stat"><div class="val">${rulesData.length}</div><div class="label">Rules Generated</div></div>
+    <div class="stat green"><div class="val">${rulesData.reduce((s, r) => s + r._count, 0)}</div><div class="label">Transactions Covered</div></div>
+  `;
+}
+
+function extractKeyword(desc) {
+  // Try to extract a meaningful vendor/payee keyword from the bank description
+  let d = desc;
+
+  // Remove common prefixes
+  d = d.replace(/^(Debit Purchase - VISA On \d{6}\s*)/i, '');
+  d = d.replace(/^(Recurring\s+Debit Purchase On \d{6}\s*)/i, '');
+  d = d.replace(/^(Recurring\s+On \d{6}\s*)/i, '');
+  d = d.replace(/^(Electronic Withdrawal To\s+)/i, '');
+  d = d.replace(/^(Electronic Deposit From\s+)/i, '');
+  d = d.replace(/^(Zelle Instant payment To\s+)/i, '');
+  d = d.replace(/^(Zelle Instant payment From\s+)/i, '');
+  d = d.replace(/^(Funds Transfer\s*)/i, '');
+  d = d.replace(/^(To\s+)/i, '');
+  d = d.replace(/^(From\s+)/i, '');
+  d = d.replace(/^(- VISA On \d{6}\s*)/i, '');
+
+  // Take first meaningful chunk (up to REF or state code patterns)
+  d = d.split(/\s+REF[=#\s]/i)[0];
+  d = d.split(/\s+\d{10,}/)[0]; // long number sequences
+
+  // Extract first 2-3 words as the keyword
+  const words = d.trim().split(/\s+/);
+  let keyword = '';
+  for (let i = 0; i < Math.min(words.length, 3); i++) {
+    const w = words[i];
+    // Stop at state codes (2-letter after city), long numbers, or junk
+    if (/^\d{6,}$/.test(w)) break;
+    if (i > 0 && /^[A-Z]{2}$/.test(w) && w !== 'US') break;
+    keyword += (keyword ? ' ' : '') + w;
+  }
+
+  // Clean up
+  keyword = keyword.replace(/[*#]+/g, '').replace(/\s+/g, ' ').trim();
+  if (keyword.length < 3) return '';
+  return keyword;
+}
+
+function renderRulesPreview(rules, containerId) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = rules.slice(0, 200).map(r => `
+    <div class="rule-card">
+      <div class="rule-name">${escHtml(r['Rule Name'])}</div>
+      <div class="rule-detail">
+        Category: <span class="badge badge-purple">${escHtml(r._category)}</span>
+        &nbsp; Matches: <span class="badge badge-green">${r._count}</span>
+      </div>
+    </div>
+  `).join('');
+  if (rules.length > 200) {
+    container.innerHTML += `<div class="alert alert-info">Showing 200 of ${rules.length} rules</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STEP 5: SPLIT MONTHLY
+// ═══════════════════════════════════════════════════════════
+function splitMonthly() {
+  monthlyData = {};
+  normalizedData.forEach(r => {
+    // Date format: MM/DD/YYYY
+    const parts = r.Date.split('/');
+    if (parts.length < 3) return;
+    const key = parts[2] + '-' + parts[0]; // YYYY-MM
+    if (!monthlyData[key]) monthlyData[key] = [];
+    monthlyData[key].push(r);
+  });
+
+  const months = Object.keys(monthlyData).sort();
+  const tabsEl = document.getElementById('monthTabs');
+  tabsEl.innerHTML = months.map(m => {
+    const [y, mo] = m.split('-');
+    const label = new Date(parseInt(y), parseInt(mo) - 1).toLocaleString('en', { month: 'short', year: 'numeric' });
+    return `<button class="month-tab" data-month="${m}" onclick="selectMonth('${m}')">${label} (${monthlyData[m].length})</button>`;
+  }).join('');
+
+  if (months.length) selectMonth(months[0]);
+}
+
+function selectMonth(m) {
+  currentMonth = m;
+  document.querySelectorAll('.month-tab').forEach(t => t.classList.toggle('active', t.dataset.month === m));
+
+  const data = monthlyData[m] || [];
+  const table = document.getElementById('monthTable');
+  table.querySelector('thead').innerHTML = '<tr><th>#</th><th>Date</th><th>Description</th><th>Amount</th><th>Schedule C Category</th></tr>';
+  table.querySelector('tbody').innerHTML = data.map((r, i) => {
+    const cls = r.Amount < 0 ? 'amount-neg' : 'amount-pos';
+    return `<tr>
+      <td>${i + 1}</td><td>${r.Date}</td>
+      <td>${escHtml(r.Description)}</td>
+      <td class="${cls}">${formatMoney(r.Amount)}</td>
+      <td><span class="badge badge-purple">${escHtml(r['Schedule C Category'])}</span></td>
+    </tr>`;
+  }).join('');
+
+  const spent = data.filter(r => r.Amount < 0).reduce((s, r) => s + r.Amount, 0);
+  const income = data.filter(r => r.Amount > 0).reduce((s, r) => s + r.Amount, 0);
+  document.getElementById('stats5').innerHTML = `
+    <div class="stat"><div class="val">${data.length}</div><div class="label">Transactions</div></div>
+    <div class="stat green"><div class="val">${formatMoney(income)}</div><div class="label">Income</div></div>
+    <div class="stat amber"><div class="val">${formatMoney(spent)}</div><div class="label">Expenses</div></div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STEP 6→7: PROCESS BANK FEED FILE
+// ═══════════════════════════════════════════════════════════
+function processBankFeedFile() {
+  const file = document.getElementById('fileInput2').files[0];
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    let text = e.target.result;
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+    const allRows = parseCSV(text);
+    if (allRows.length < 2) { alert('File appears empty.'); return; }
+
+    // Find header row
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(allRows.length, 5); i++) {
+      if (allRows[i].some(c => c.toLowerCase().includes('date'))) {
+        headerIdx = i; break;
+      }
+    }
+    if (headerIdx === -1) { alert('Could not find header row.'); return; }
+
+    const headers = allRows[headerIdx].map(h => h.trim().toLowerCase());
+    const dateIdx = headers.findIndex(h => h === 'date');
+    const descIdx = headers.findIndex(h => h.includes('description') || h.includes('bank description'));
+    const spentIdx = headers.findIndex(h => h === 'spent' || h.includes('debit'));
+    const recvIdx = headers.findIndex(h => h === 'received' || h.includes('credit'));
+    const catIdx = headers.findIndex(h => h.includes('categorize') || h.includes('match') || h.includes('category'));
+
+    // Build lookup index from normalizedData: description keywords -> category
+    const lookupMap = buildLookupMap();
+
+    leftoverNormalized = [];
+    let matched = 0, unmatched = 0;
+
+    for (let i = headerIdx + 1; i < allRows.length; i++) {
+      const r = allRows[i];
+      if (!r[dateIdx]) continue;
+
+      const desc = r[descIdx] || '';
+      const spent = parseAmount(r[spentIdx]);
+      const recv = recvIdx >= 0 ? parseAmount(r[recvIdx]) : 0;
+      let amount = 0;
+      if (spent > 0) amount = -spent;
+      else if (recv > 0) amount = recv;
+
+      // Always lookup category from normalized table (Step 2), ignore bank feed's suggestive Match/Categorize
+      const lookedUp = lookupCategory(desc, lookupMap);
+      let category = '';
+      if (lookedUp) { category = lookedUp; matched++; }
+      else { unmatched++; }
+
+      leftoverNormalized.push({
+        'Date': r[dateIdx],
+        'Description': desc,
+        'Amount': amount,
+        'Schedule C Category': category
+      });
+    }
+
+    // Generate rules for leftovers
+    generateLeftoverRules();
+
+    // Render
+    renderLeftoverTable();
+    document.getElementById('lookupAlert').innerHTML =
+      `<strong>${matched}</strong> transactions matched with categories, <strong>${unmatched}</strong> remain unmatched.`;
+
+    document.getElementById('stats7').innerHTML = `
+      <div class="stat"><div class="val">${leftoverNormalized.length}</div><div class="label">Transactions</div></div>
+      <div class="stat green"><div class="val">${matched}</div><div class="label">Categorized</div></div>
+      <div class="stat amber"><div class="val">${unmatched}</div><div class="label">Uncategorized</div></div>
+      <div class="stat cyan"><div class="val">${leftoverRules.length}</div><div class="label">Rules Generated</div></div>
+    `;
+
+    goStep(7);
+  };
+  reader.readAsText(file);
+}
+
+function buildLookupMap() {
+  // Build a map from description keywords -> category from the original normalized data
+  const map = {};
+  normalizedData.forEach(r => {
+    const desc = r.Description.trim().toUpperCase();
+    const cat = r['Schedule C Category'].trim();
+    if (!desc || !cat || cat === 'Opening Balance Equity') return;
+
+    // Store multiple keyword fragments for fuzzy matching
+    const kw = extractKeyword(r.Description);
+    if (kw && kw.length >= 3) {
+      const key = kw.toUpperCase();
+      if (!map[key]) map[key] = cat;
+    }
+    // Also store individual significant words
+    desc.split(/\s+/).forEach(w => {
+      w = w.replace(/[^A-Z0-9]/g, '');
+      if (w.length >= 4 && !/^\d+$/.test(w)) {
+        if (!map[w]) map[w] = cat;
+      }
+    });
+  });
+  return map;
+}
+
+function lookupCategory(desc, lookupMap) {
+  const upper = desc.toUpperCase();
+
+  // Try exact keyword match first
+  const kw = extractKeyword(desc);
+  if (kw) {
+    const key = kw.toUpperCase();
+    if (lookupMap[key]) return lookupMap[key];
+  }
+
+  // Try individual words
+  const words = upper.split(/\s+/);
+  for (const w of words) {
+    const clean = w.replace(/[^A-Z0-9]/g, '');
+    if (clean.length >= 4 && lookupMap[clean]) return lookupMap[clean];
+  }
+
+  // Try substring matching
+  for (const [key, cat] of Object.entries(lookupMap)) {
+    if (key.length >= 5 && upper.includes(key)) return cat;
+  }
+
+  return '';
+}
+
+function generateLeftoverRules() {
+  leftoverRules = [];
+  const seen = new Set();
+
+  leftoverNormalized.forEach(r => {
+    const cat = r['Schedule C Category'].trim();
+    if (!cat) return;
+
+    const kw = extractKeyword(r.Description);
+    if (!kw || kw.length < 3) return;
+
+    const key = kw.toUpperCase() + '|' + cat;
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    const direction = r.Amount < 0 ? -1 : 1;
+    const conditions = {
+      ruleConditions: [
+        { ruleType: 10, value: String(direction) },
+        { ruleType: 6, value: kw }
+      ],
+      isAndRule: false
+    };
+    const outputs = {
+      ruleActions: [
+        { actionType: 0, value: cat },
+        { actionType: 5, value: kw },
+        { actionType: 11, value: [] }
+      ]
+    };
+
+    leftoverRules.push({
+      'Rule Name': kw,
+      'Rule Conditions': JSON.stringify(conditions),
+      'Rule Outputs': JSON.stringify(outputs),
+      _category: cat,
+      _count: 1
+    });
+  });
+
+  renderRulesPreview(leftoverRules, 'leftoverRulesPreview');
+}
+
+function getAllCategoryNames() {
+  const cats = new Set();
+  normalizedData.forEach(r => { if (r['Schedule C Category']) cats.add(r['Schedule C Category']); });
+  coaData.forEach(r => { if (r['Account Name']) cats.add(r['Account Name']); });
+  return Array.from(cats).sort();
+}
+
+function renderLeftoverTable() {
+  const table = document.getElementById('leftoverTable');
+  table.querySelector('thead').innerHTML = '<tr><th>#</th><th>Date</th><th>Description</th><th>Amount</th><th>Schedule C Category</th></tr>';
+  table.querySelector('tbody').innerHTML = leftoverNormalized.map((r, i) => {
+    const cls = r.Amount < 0 ? 'amount-neg' : 'amount-pos';
+    let catCell;
+    if (r['Schedule C Category']) {
+      catCell = `<td class="cat-cell"><span class="badge badge-purple">${escHtml(r['Schedule C Category'])}</span></td>`;
+    } else {
+      catCell = `<td class="cat-cell">
+        <input class="cat-edit-input" data-idx="${i}" placeholder="Type category..."
+               oninput="onCatInput(this)" onfocus="onCatInput(this)" onblur="setTimeout(()=>closeSuggestions(this),150)"
+               onkeydown="onCatKeydown(event, this)">
+      </td>`;
+    }
+    return `<tr>
+      <td>${i + 1}</td><td>${r.Date}</td>
+      <td>${escHtml(r.Description)}</td>
+      <td class="${cls}">${formatMoney(r.Amount)}</td>
+      ${catCell}
+    </tr>`;
+  }).join('');
+}
+
+function onCatInput(input) {
+  const val = input.value.toLowerCase();
+  const allCats = getAllCategoryNames();
+  const filtered = val ? allCats.filter(c => c.toLowerCase().includes(val)) : allCats;
+  showSuggestions(input, filtered);
+}
+
+function showSuggestions(input, items) {
+  closeSuggestions(input);
+  if (!items.length) return;
+  const dropdown = document.createElement('div');
+  dropdown.className = 'cat-suggestions';
+  dropdown.id = 'catDropdown_' + input.dataset.idx;
+  items.slice(0, 15).forEach((item, i) => {
+    const div = document.createElement('div');
+    div.textContent = item;
+    div.onmousedown = function(e) {
+      e.preventDefault();
+      applyCategoryEdit(input, item);
+    };
+    dropdown.appendChild(div);
+  });
+  input.parentElement.appendChild(dropdown);
+}
+
+function closeSuggestions(input) {
+  const existing = input.parentElement.querySelector('.cat-suggestions');
+  if (existing) existing.remove();
+}
+
+function onCatKeydown(e, input) {
+  const dropdown = input.parentElement.querySelector('.cat-suggestions');
+  if (!dropdown) {
+    if (e.key === 'Enter' && input.value.trim()) {
+      applyCategoryEdit(input, input.value.trim());
+      e.preventDefault();
+    }
+    return;
+  }
+  const items = dropdown.querySelectorAll('div');
+  let active = dropdown.querySelector('.active');
+  let idx = active ? Array.from(items).indexOf(active) : -1;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (active) active.classList.remove('active');
+    idx = (idx + 1) % items.length;
+    items[idx].classList.add('active');
+    items[idx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (active) active.classList.remove('active');
+    idx = idx <= 0 ? items.length - 1 : idx - 1;
+    items[idx].classList.add('active');
+    items[idx].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (active) {
+      applyCategoryEdit(input, active.textContent);
+    } else if (input.value.trim()) {
+      applyCategoryEdit(input, input.value.trim());
+    }
+  } else if (e.key === 'Escape') {
+    closeSuggestions(input);
+  }
+}
+
+function applyCategoryEdit(input, value) {
+  const idx = parseInt(input.dataset.idx);
+  leftoverNormalized[idx]['Schedule C Category'] = value;
+  closeSuggestions(input);
+
+  // Replace input with badge
+  const td = input.parentElement;
+  td.innerHTML = `<span class="badge badge-purple">${escHtml(value)}</span>`;
+
+  // Regenerate leftover rules & update stats
+  generateLeftoverRules();
+  const matched = leftoverNormalized.filter(r => r['Schedule C Category']).length;
+  const unmatched = leftoverNormalized.length - matched;
+  document.getElementById('lookupAlert').innerHTML =
+    `<strong>${matched}</strong> transactions matched with categories, <strong>${unmatched}</strong> remain unmatched.`;
+  document.getElementById('stats7').innerHTML = `
+    <div class="stat"><div class="val">${leftoverNormalized.length}</div><div class="label">Transactions</div></div>
+    <div class="stat green"><div class="val">${matched}</div><div class="label">Categorized</div></div>
+    <div class="stat amber"><div class="val">${unmatched}</div><div class="label">Uncategorized</div></div>
+    <div class="stat cyan"><div class="val">${leftoverRules.length}</div><div class="label">Rules Generated</div></div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DOWNLOAD HELPERS
+// ═══════════════════════════════════════════════════════════
+function downloadCSV(data, filename, columns) {
+  const rows = [columns.join(',')];
+  data.forEach(r => {
+    rows.push(columns.map(c => `"${String(r[c] || '').replace(/"/g, '""')}"`).join(','));
+  });
+  downloadBlob(rows.join('\n'), filename, 'text/csv');
+}
+
+function downloadCOA() {
+  const cols = ['Account Number', 'Account Name', 'Type', 'Detail Type'];
+  downloadCSV(coaData, 'QBO_Chart_of_Accounts_Import.csv', cols);
+}
+
+function buildRulesRows(rules, withPayee) {
+  return rules.map(r => {
+    let outputs = r['Rule Outputs'];
+    if (!withPayee) {
+      const parsed = JSON.parse(outputs);
+      parsed.ruleActions = parsed.ruleActions.filter(a => a.actionType !== 5);
+      outputs = JSON.stringify(parsed);
+    }
+    return [r['Rule Name'], r['Rule Conditions'], outputs];
+  });
+}
+
+function downloadRulesXLS(withPayee) {
+  const cols = ['Rule Name', 'Rule Conditions', 'Rule Outputs'];
+  const suffix = withPayee ? '_with_Payee' : '_no_Payee';
+  writeXLS(cols, buildRulesRows(rulesData, withPayee), 'Bank Feed Rules', 'QBO_Bank_Feed_Rules' + suffix + '.xls');
+}
+
+function downloadLeftoverRulesXLS(withPayee) {
+  const cols = ['Rule Name', 'Rule Conditions', 'Rule Outputs'];
+  const suffix = withPayee ? '_with_Payee' : '_no_Payee';
+  writeXLS(cols, buildRulesRows(leftoverRules, withPayee), 'Bank Feed Rules', 'QBO_Leftover_Rules' + suffix + '.xls');
+}
+
+function writeXLS(headers, dataRows, sheetName, filename) {
+  const aoa = [headers, ...dataRows];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  // Set column widths
+  ws['!cols'] = headers.map((_, i) => ({ wch: i === 0 ? 30 : 60 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename, { bookType: 'xls' });
+}
+
+function downloadCurrentMonth() {
+  const data = monthlyData[currentMonth] || [];
+  const [y, m] = currentMonth.split('-');
+  const label = new Date(parseInt(y), parseInt(m) - 1).toLocaleString('en', { month: 'short', year: 'numeric' }).replace(' ', '_');
+  downloadCSV(data, `Transactions_${label}.csv`, ['Date', 'Description', 'Amount', 'Schedule C Category']);
+}
+
+function downloadAllMonths() {
+  const months = Object.keys(monthlyData).sort();
+  months.forEach(m => {
+    const data = monthlyData[m];
+    const [y, mo] = m.split('-');
+    const label = new Date(parseInt(y), parseInt(mo) - 1).toLocaleString('en', { month: 'short', year: 'numeric' }).replace(' ', '_');
+    setTimeout(() => {
+      downloadCSV(data, `Transactions_${label}.csv`, ['Date', 'Description', 'Amount', 'Schedule C Category']);
+    }, months.indexOf(m) * 300);
+  });
+}
+
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type: type + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FILTER / SEARCH
+// ═══════════════════════════════════════════════════════════
+function filterTable(tableId, query) {
+  const q = query.toLowerCase();
+  const rows = document.getElementById(tableId).querySelector('tbody').querySelectorAll('tr');
+  rows.forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function filterRules(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('#rulesPreview .rule-card').forEach(card => {
+    card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function formatMoney(n) {
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PROJECT EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════════
+function exportProject() {
+  if (!normalizedData.length) { alert('No data to export. Process a QBD file first.'); return; }
+  const project = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    normalizedData: normalizedData,
+    coaData: coaData,
+    rulesData: rulesData.map(r => ({
+      'Rule Name': r['Rule Name'],
+      'Rule Conditions': r['Rule Conditions'],
+      'Rule Outputs': r['Rule Outputs'],
+      _category: r._category,
+      _count: r._count
+    })),
+    leftoverNormalized: leftoverNormalized,
+    leftoverRules: leftoverRules.map(r => ({
+      'Rule Name': r['Rule Name'],
+      'Rule Conditions': r['Rule Conditions'],
+      'Rule Outputs': r['Rule Outputs'],
+      _category: r._category,
+      _count: r._count
+    }))
+  };
+  const json = JSON.stringify(project);
+  const filename = 'QBO_Project_' + new Date().toISOString().slice(0,10) + '.json';
+  downloadBlob(json, filename, 'application/json');
+}
+
+function importProject(input) {
+  if (!input.files.length) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const project = JSON.parse(e.target.result);
+      if (!project.normalizedData || !project.normalizedData.length) {
+        alert('Invalid project file: no normalized data found.'); return;
+      }
+
+      // Restore state
+      normalizedData = project.normalizedData;
+      coaData = project.coaData || [];
+      rulesData = project.rulesData || [];
+      leftoverNormalized = project.leftoverNormalized || [];
+      leftoverRules = project.leftoverRules || [];
+
+      // Re-render everything
+      renderNormalizedTable();
+
+      if (coaData.length) {
+        const table = document.getElementById('coaTable');
+        table.querySelector('thead').innerHTML = '<tr><th>#</th><th>Account Name</th><th>Type</th><th>Detail Type</th></tr>';
+        table.querySelector('tbody').innerHTML = coaData.map((r, i) => `<tr>
+          <td>${i + 1}</td>
+          <td>${escHtml(r['Account Name'])}</td>
+          <td><span class="badge badge-blue">${r.Type}</span></td>
+          <td>${escHtml(r['Detail Type'])}</td>
+        </tr>`).join('');
+        const types = {};
+        coaData.forEach(r => { types[r.Type] = (types[r.Type] || 0) + 1; });
+        document.getElementById('stats3').innerHTML = `
+          <div class="stat"><div class="val">${coaData.length}</div><div class="label">Total Accounts</div></div>
+          ${Object.entries(types).map(([t, c]) => `<div class="stat cyan"><div class="val">${c}</div><div class="label">${t}</div></div>`).join('')}
+        `;
+      }
+
+      if (rulesData.length) {
+        renderRulesPreview(rulesData, 'rulesPreview');
+        document.getElementById('stats4').innerHTML = `
+          <div class="stat"><div class="val">${rulesData.length}</div><div class="label">Rules Generated</div></div>
+          <div class="stat green"><div class="val">${rulesData.reduce((s, r) => s + r._count, 0)}</div><div class="label">Transactions Covered</div></div>
+        `;
+      }
+
+      splitMonthly();
+
+      if (leftoverNormalized.length) {
+        renderLeftoverTable();
+        renderRulesPreview(leftoverRules, 'leftoverRulesPreview');
+        const matched = leftoverNormalized.filter(r => r['Schedule C Category']).length;
+        const unmatched = leftoverNormalized.length - matched;
+        document.getElementById('lookupAlert').innerHTML =
+          `<strong>${matched}</strong> transactions matched, <strong>${unmatched}</strong> unmatched.`;
+        document.getElementById('stats7').innerHTML = `
+          <div class="stat"><div class="val">${leftoverNormalized.length}</div><div class="label">Transactions</div></div>
+          <div class="stat green"><div class="val">${matched}</div><div class="label">Categorized</div></div>
+          <div class="stat amber"><div class="val">${unmatched}</div><div class="label">Uncategorized</div></div>
+          <div class="stat cyan"><div class="val">${leftoverRules.length}</div><div class="label">Rules Generated</div></div>
+        `;
+      }
+
+      goStep(2);
+      alert('Project loaded successfully! (' + normalizedData.length + ' transactions, ' + rulesData.length + ' rules)');
+    } catch (err) {
+      alert('Error loading project: ' + err.message);
+    }
+  };
+  reader.readAsText(input.files[0]);
+  input.value = ''; // reset so same file can be re-loaded
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickBooks Conversion Toolkit</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #5b6472;
+      --line: #d9dee7;
+      --panel: #ffffff;
+      --surface: #f5f7fb;
+      --primary: #2557a7;
+      --primary-dark: #183f7a;
+      --accent: #087f8c;
+      --shadow: 0 12px 30px rgba(25, 37, 66, .10);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--surface);
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .header-inner {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 22px 0 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f9fafb;
+      flex-shrink: 0;
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tab:hover {
+      color: var(--ink);
+      background: #eef2f7;
+    }
+
+    .tab.active {
+      color: #ffffff;
+      background: var(--primary);
+      box-shadow: 0 2px 7px rgba(37, 87, 167, .22);
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 22px auto 42px;
+    }
+
+    .tool-intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 20px;
+      align-items: center;
+      padding: 18px 20px;
+      margin-bottom: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .tool-intro h2 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .tool-intro p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .open-link {
+      color: #ffffff;
+      background: var(--accent);
+      border-radius: 6px;
+      padding: 10px 13px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .open-link:hover { background: #066a75; }
+
+    .frame-shell {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    iframe {
+      display: block;
+      width: 100%;
+      min-height: 820px;
+      border: 0;
+      background: #ffffff;
+    }
+
+    @media (max-width: 760px) {
+      .header-inner {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .tool-intro {
+        grid-template-columns: 1fr;
+      }
+
+      .open-link {
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>QuickBooks Conversion Toolkit</h1>
+        <p class="subtitle">One entry point for QBD workflow prep and QBO/OFX to CSV conversion.</p>
+      </div>
+      <nav class="tabs" aria-label="Conversion tools">
+        <button class="tab active" type="button" data-tool="qbd">QBD to QBO Prep</button>
+        <button class="tab" type="button" data-tool="qbo">QBO to CSV</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="tool-intro" aria-live="polite">
+      <div>
+        <h2 id="toolTitle">QBD to QBO Prep</h2>
+        <p id="toolDescription">Normalize QuickBooks Desktop exports, generate chart of accounts files, create bank rules, split monthly imports, and build leftover rules.</p>
+      </div>
+      <a class="open-link" id="openLink" href="qbd2qbo.html" target="_blank" rel="noopener">Open Full Page</a>
+    </section>
+
+    <div class="frame-shell">
+      <iframe id="toolFrame" title="QBD to QBO Prep" src="qbd2qbo.html"></iframe>
+    </div>
+  </main>
+
+  <script>
+    const tools = {
+      qbd: {
+        title: 'QBD to QBO Prep',
+        description: 'Normalize QuickBooks Desktop exports, generate chart of accounts files, create bank rules, split monthly imports, and build leftover rules.',
+        src: 'qbd2qbo.html'
+      },
+      qbo: {
+        title: 'QBO to CSV',
+        description: 'Upload QBO or OFX files, merge files by account, preview transactions, and export clean CSV files.',
+        src: 'qbo-to-csv.html'
+      }
+    };
+
+    const frame = document.getElementById('toolFrame');
+    const title = document.getElementById('toolTitle');
+    const description = document.getElementById('toolDescription');
+    const openLink = document.getElementById('openLink');
+    const tabs = Array.from(document.querySelectorAll('.tab'));
+
+    function selectTool(toolId) {
+      const tool = tools[toolId];
+      if (!tool) return;
+
+      tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.tool === toolId));
+      title.textContent = tool.title;
+      description.textContent = tool.description;
+      openLink.href = tool.src;
+      frame.title = tool.title;
+      frame.src = tool.src;
+    }
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => selectTool(tab.dataset.tool));
+    });
+  </script>
+</body>
+</html>

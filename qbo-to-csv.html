@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QBO → CSV Converter</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px 20px; min-height: 100vh; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,.1); padding: 36px 40px; width: 100%; max-width: 820px; height: fit-content; }
+    h1 { font-size: 22px; color: #1a1a2e; margin-bottom: 6px; }
+    p.sub { color: #666; font-size: 14px; margin-bottom: 28px; }
+
+    /* Drop zone */
+    #dropzone {
+      border: 2px dashed #4a90e2; border-radius: 8px; padding: 40px 20px;
+      text-align: center; cursor: pointer; transition: background .2s;
+      background: #f7fbff; margin-bottom: 24px;
+    }
+    #dropzone:hover, #dropzone.over { background: #e8f2ff; }
+    #dropzone svg { width: 48px; height: 48px; color: #4a90e2; margin-bottom: 12px; }
+    #dropzone p { color: #555; font-size: 15px; }
+    #dropzone span { color: #4a90e2; font-weight: bold; }
+    #fileInput { display: none; }
+
+    /* Status bar */
+    #statusBar { display: none; font-size: 13px; color: #555; margin-bottom: 16px; padding: 8px 12px; background: #f0f6ff; border-radius: 6px; border: 1px solid #cce0ff; }
+
+    /* Download-all button */
+    #downloadAllBtn {
+      display: none; width: 100%; margin-bottom: 20px;
+      background: #4a90e2; color: #fff; border: none; border-radius: 8px;
+      padding: 12px; font-size: 15px; font-weight: bold; cursor: pointer;
+      transition: background .2s;
+    }
+    #downloadAllBtn:hover { background: #357abd; }
+
+    /* Results */
+    #results { display: none; }
+    .file-result { border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+    .file-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 16px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0;
+    }
+    .file-header .info { font-size: 14px; flex: 1; min-width: 0; }
+    .file-header .info strong { display: block; color: #1a1a2e; font-size: 15px; margin-bottom: 4px; }
+    .file-header .info .src-files { color: #888; font-size: 12px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-dl {
+      flex-shrink: 0; margin-left: 12px;
+      background: #28a745; color: #fff; border: none; border-radius: 6px;
+      padding: 8px 18px; font-size: 14px; cursor: pointer; font-weight: bold;
+      transition: background .2s;
+    }
+    .btn-dl:hover { background: #218838; }
+    .preview-wrap { overflow-x: auto; max-height: 220px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #4a90e2; color: #fff; padding: 8px 12px; text-align: left; position: sticky; top: 0; }
+    td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #fafafa; }
+    td.amount { text-align: right; font-family: monospace; }
+    td.amount.neg { color: #dc3545; }
+    td.amount.pos { color: #28a745; }
+
+    .error-msg { background: #fff3f3; border: 1px solid #f5c6cb; border-radius: 6px; padding: 12px 16px; color: #721c24; font-size: 14px; margin-bottom: 12px; }
+    #resetBtn { display: none; margin-top: 8px; background: #6c757d; color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 14px; cursor: pointer; }
+    #resetBtn:hover { background: #5a6268; }
+    .badge { display: inline-block; background: #e9ecef; border-radius: 4px; padding: 2px 8px; font-size: 12px; color: #495057; margin-left: 6px; }
+    .badge.green { background: #d4edda; color: #155724; }
+    .section-label { font-size: 12px; font-weight: bold; color: #888; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>QBO → CSV Converter</h1>
+  <p class="sub">Upload one or many QBO files — files from the same account are automatically merged into one CSV, sorted by date.</p>
+
+  <div id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+    </svg>
+    <p><span>Click to select</span> or drag & drop QBO files here</p>
+    <p style="font-size:12px;color:#999;margin-top:6px;">Select multiple files — same account files are merged automatically</p>
+  </div>
+  <input type="file" id="fileInput" accept=".qbo,.ofx" multiple>
+
+  <div id="statusBar"></div>
+  <button id="downloadAllBtn" onclick="downloadAll()">⬇ Download All CSVs</button>
+  <div id="results"></div>
+  <button id="resetBtn" onclick="resetAll()">↺ Convert More Files</button>
+</div>
+
+<script>
+// ── Drag & Drop ──────────────────────────────────────────────────────────────
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); processFiles(e.dataTransfer.files); });
+document.getElementById('fileInput').addEventListener('change', e => processFiles(e.target.files));
+
+// Stored groups for "Download All"
+let _groups = [];
+
+function resetAll() {
+  _groups = [];
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('statusBar').style.display = 'none';
+  document.getElementById('downloadAllBtn').style.display = 'none';
+  document.getElementById('resetBtn').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+}
+
+// ── Process Files ────────────────────────────────────────────────────────────
+function processFiles(fileList) {
+  const files = Array.from(fileList);
+  if (!files.length) return;
+
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = '';
+  resultsDiv.style.display = 'block';
+  document.getElementById('resetBtn').style.display = 'inline-block';
+
+  // Read all files as text, then group & render
+  const promises = files.map(file =>
+    new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve({ filename: file.name, text: e.target.result });
+      reader.onerror = () => resolve({ filename: file.name, text: null, error: 'Could not read file' });
+      reader.readAsText(file, 'windows-1252');
+    })
+  );
+
+  Promise.all(promises).then(results => {
+    // Parse each file
+    const parsed = results.map(r => {
+      if (r.error) return { filename: r.filename, error: r.error };
+      try {
+        const data = parseQBO(r.text);
+        return { filename: r.filename, ...data };
+      } catch(e) {
+        return { filename: r.filename, error: e.message };
+      }
+    });
+
+    // Render any errors first
+    parsed.filter(p => p.error).forEach(p => {
+      const div = document.createElement('div');
+      div.innerHTML = `<div class="error-msg">❌ <strong>${escHtml(p.filename)}</strong>: ${escHtml(p.error)}</div>`;
+      resultsDiv.appendChild(div);
+    });
+
+    // Group successful results by last4
+    const good = parsed.filter(p => !p.error);
+    const groupMap = {};
+    good.forEach(p => {
+      const key = p.last4;
+      if (!groupMap[key]) groupMap[key] = [];
+      groupMap[key].push(p);
+    });
+
+    // Sort groups by last4, then render
+    _groups = [];
+    Object.keys(groupMap).sort().forEach(last4 => {
+      const items = groupMap[last4];
+
+      // Merge & sort all rows by dateRaw
+      const allRows = items.flatMap(item => item.rows);
+      allRows.sort((a, b) => a.dateRaw.localeCompare(b.dateRaw));
+
+      // Deduplicate by FITID (same transaction in overlapping QBO ranges)
+      const seen = new Set();
+      const dedupedRows = allRows.filter(r => {
+        if (r.fitid && seen.has(r.fitid)) return false;
+        if (r.fitid) seen.add(r.fitid);
+        return true;
+      });
+
+      // Year range for filename
+      const years = [...new Set(items.map(i => i.year))].sort();
+      const yearLabel = years.length === 1 ? years[0] : `${years[0]}-${years[years.length - 1]}`;
+      const csvName = `${last4} ${yearLabel}.csv`;
+      const csv = buildCSV(dedupedRows);
+
+      _groups.push({ csvName, csv });
+      renderGroup(last4, items, dedupedRows, csvName, csv, resultsDiv);
+    });
+
+    // Status bar
+    const nFiles = good.length;
+    const nAccounts = Object.keys(groupMap).length;
+    const nDups = good.reduce((sum, p) => sum + p.rows.length, 0) - _groups.reduce((sum, g) => sum + (g.csv.split('\n').length - 1), 0);
+    const statusBar = document.getElementById('statusBar');
+    statusBar.style.display = 'block';
+    statusBar.innerHTML = `✅ Processed <b>${nFiles}</b> file${nFiles !== 1 ? 's' : ''} → <b>${nAccounts}</b> account${nAccounts !== 1 ? 's' : ''}` +
+      (nDups > 0 ? ` &nbsp;|&nbsp; <b>${nDups}</b> duplicate transaction${nDups !== 1 ? 's' : ''} removed` : '');
+
+    // Show "Download All" only when multiple accounts
+    if (nAccounts > 1) {
+      document.getElementById('downloadAllBtn').style.display = 'block';
+    }
+  });
+}
+
+// ── Parse QBO ────────────────────────────────────────────────────────────────
+function parseQBO(text) {
+  // Strip OFX file header (everything before <OFX>)
+  const ofxStart = text.indexOf('<OFX>');
+  const xmlStr = ofxStart >= 0 ? text.slice(ofxStart) : text;
+
+  // Escape bare & characters that would break XML parsing
+  let fixed = xmlStr.replace(/&(?!amp;|lt;|gt;|quot;|apos;|#)/g, '&amp;');
+
+  // Fix unclosed SGML tags (OFX 1.x uses SGML, not XML)
+  const knownLeaf = [
+    'TRNTYPE','DTPOSTED','TRNAMT','FITID','NAME','MEMO','CHECKNUM',
+    'ACCTID','BANKID','ACCTTYPE','CURDEF','DTSTART','DTEND',
+    'CODE','SEVERITY','DTSERVER','LANGUAGE','DTACCTUP','ORG','FID',
+    'INTU.BID','INTU.USERID','BALAMT','DTASOF',
+    'TRNUID','MKTGINFO'
+  ];
+  knownLeaf.forEach(tag => {
+    // Escape dots for regex matching, but use original tag name in replacement
+    const reTag = tag.replace(/\./g, '\\.');
+    const re = new RegExp(`<${reTag}>([^<]*)(?=\\s*<(?!\\/${reTag}>))`, 'g');
+    fixed = fixed.replace(re, `<${tag}>$1</${tag}>`);
+  });
+
+  let doc;
+  try {
+    doc = new DOMParser().parseFromString(fixed, 'text/xml');
+  } catch(e) {
+    throw new Error('XML parse failed: ' + e.message);
+  }
+  const parseErr = doc.querySelector('parsererror');
+  if (parseErr) throw new Error('XML parse failed: ' + parseErr.textContent.substring(0, 200));
+
+  // Account ID
+  let acctId = '';
+  const acctIdEl = doc.querySelector('ACCTID');
+  if (acctIdEl) acctId = acctIdEl.textContent.trim();
+  const last4 = acctId.length >= 4 ? acctId.slice(-4) : acctId || 'XXXX';
+
+  // Transactions
+  const rows = [];
+  doc.querySelectorAll('STMTTRN').forEach(trn => {
+    const dtRaw  = getText(trn, 'DTPOSTED');
+    const amt    = getText(trn, 'TRNAMT');
+    const memo   = getText(trn, 'MEMO') || getText(trn, 'NAME') || '';
+    const fitid  = getText(trn, 'FITID');
+    const date   = formatDate(dtRaw);
+    rows.push({ date, dateRaw: dtRaw, description: memo.trim(), amount: amt, fitid });
+  });
+
+  const year = rows.length
+    ? rows[0].dateRaw.substring(0, 4)
+    : new Date().getFullYear().toString();
+
+  return { last4, year, rows };
+}
+
+function getText(parent, tag) {
+  const el = parent.querySelector(tag);
+  return el ? el.textContent.trim() : '';
+}
+
+function formatDate(raw) {
+  if (!raw || raw.length < 8) return raw;
+  return `${raw.substring(4,6)}/${raw.substring(6,8)}/${raw.substring(0,4)}`;
+}
+
+// ── Build CSV ────────────────────────────────────────────────────────────────
+function buildCSV(rows) {
+  const lines = ['Date,Description,Amount'];
+  rows.forEach(r => {
+    const desc = '"' + r.description.replace(/"/g, '""') + '"';
+    lines.push(`${r.date},${desc},${r.amount}`);
+  });
+  return lines.join('\r\n');
+}
+
+// ── Render Group ─────────────────────────────────────────────────────────────
+function renderGroup(last4, items, rows, csvName, csv, container) {
+  const div = document.createElement('div');
+  div.className = 'file-result';
+
+  // Source file names
+  const srcNames = items.map(i => i.filename).join(', ');
+  const years = [...new Set(items.map(i => i.year))].sort();
+  const yearLabel = years.length === 1 ? years[0] : `${years[0]}–${years[years.length - 1]}`;
+
+  // Preview table (first 50 rows)
+  const preview = rows.slice(0, 50);
+  const moreCount = rows.length - preview.length;
+  const tableRows = preview.map(r => {
+    const neg = parseFloat(r.amount) < 0;
+    const pos = parseFloat(r.amount) > 0;
+    return `<tr>
+      <td>${r.date}</td>
+      <td>${escHtml(r.description)}</td>
+      <td class="amount ${neg ? 'neg' : pos ? 'pos' : ''}">${r.amount}</td>
+    </tr>`;
+  }).join('');
+
+  const mergedBadge = items.length > 1
+    ? `<span class="badge green">⛓ ${items.length} files merged</span>`
+    : '';
+
+  div.innerHTML = `
+    <div class="file-header">
+      <div class="info">
+        <strong>Acct ...${escHtml(last4)} &nbsp;·&nbsp; ${escHtml(yearLabel)}
+          ${mergedBadge}
+          <span class="badge">${rows.length} transactions</span>
+        </strong>
+        <span style="color:#555;font-size:13px;">→ <b>${escHtml(csvName)}</b></span>
+        <div class="src-files">Source: ${escHtml(srcNames)}</div>
+      </div>
+      <button class="btn-dl" onclick="downloadCSV(this)"
+        data-csv="${encodeURIComponent(csv)}"
+        data-name="${encodeURIComponent(csvName)}">
+        ⬇ Download CSV
+      </button>
+    </div>
+    <div class="preview-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+      ${moreCount > 0 ? `<p style="text-align:center;padding:8px;font-size:12px;color:#666;">…and ${moreCount} more rows in the downloaded file</p>` : ''}
+    </div>`;
+
+  container.appendChild(div);
+}
+
+// ── Download ─────────────────────────────────────────────────────────────────
+function downloadCSV(btn) {
+  const csv  = decodeURIComponent(btn.dataset.csv);
+  const name = decodeURIComponent(btn.dataset.name);
+  triggerDownload(csv, name);
+}
+
+function downloadAll() {
+  _groups.forEach((g, i) => {
+    // Stagger slightly so browser doesn't block multiple downloads
+    setTimeout(() => triggerDownload(g.csv, g.csvName), i * 300);
+  });
+}
+
+function triggerDownload(csv, name) {
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
