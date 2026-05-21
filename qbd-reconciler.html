@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QBD Reconciler (Standalone Edition)</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX) Library for local Excel/CSV parsing and writing -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        /* Global Reset and Core Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-main: #0B0F19;
+            --bg-card: rgba(22, 29, 49, 0.7);
+            --bg-card-hover: rgba(22, 29, 49, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(99, 102, 241, 0.4);
+            
+            /* Accent Palette */
+            --accent-color: #6366F1;
+            --accent-hover: #4F46E5;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            
+            --success-color: #10B981;
+            --success-glow: rgba(16, 185, 129, 0.2);
+            
+            --warning-color: #F59E0B;
+            --warning-glow: rgba(245, 158, 11, 0.2);
+            
+            --danger-color: #EF4444;
+            --danger-glow: rgba(239, 68, 68, 0.2);
+            
+            /* Typography colors */
+            --text-primary: #F3F4F6;
+            --text-secondary: #9CA3AF;
+            --text-muted: #6B7280;
+            
+            /* Font stacks */
+            --font-heading: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            line-height: 1.5;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(at 10% 20%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+                radial-gradient(at 90% 80%, rgba(16, 185, 129, 0.03) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* App Layout */
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Header */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, var(--accent-color), #8B5CF6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 2px 8px var(--accent-glow));
+        }
+
+        .logo-text h1 {
+            font-family: var(--font-heading);
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+
+        .logo-text span {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .header-status .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+        }
+
+        .status-badge.idle {
+            color: var(--text-secondary);
+        }
+
+        .status-badge.processing {
+            color: var(--warning-color);
+            border-color: rgba(245, 158, 11, 0.3);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .status-badge.success {
+            color: var(--success-color);
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: currentColor;
+            border-radius: 50%;
+            animation: pulse 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.5; }
+        }
+
+        /* Cards */
+        .app-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 15px 40px -10px rgba(0, 0, 0, 0.7);
+        }
+
+        .card-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header h2 {
+            font-family: var(--font-heading);
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .card-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Upload Dropzones */
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .upload-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.01);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--accent-color);
+            background: rgba(99, 102, 241, 0.03);
+            box-shadow: inset 0 0 12px rgba(99, 102, 241, 0.05);
+        }
+
+        .dropzone.has-file {
+            border-color: var(--success-color);
+            background: rgba(16, 185, 129, 0.02);
+        }
+
+        .icon-upload {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .dropzone:hover .icon-upload {
+            color: var(--accent-color);
+            transform: translateY(-4px);
+        }
+
+        .dropzone.has-file .icon-upload {
+            color: var(--success-color);
+        }
+
+        .dropzone h3 {
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .dropzone-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .browse-link {
+            color: var(--accent-color);
+            font-weight: 500;
+            text-decoration: underline;
+        }
+
+        .file-info {
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            word-break: break-all;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .dropzone.has-file .file-info {
+            color: var(--success-color);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .upload-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        /* Mapping Grid */
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 992px) {
+            .mapping-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+        }
+
+        .mapping-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .mapping-title {
+            font-family: var(--font-heading);
+            font-size: 1.15rem;
+            font-weight: 600;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mapping-title i {
+            color: var(--accent-color);
+        }
+
+        /* Forms */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .form-group.half {
+            flex: 1;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .required {
+            color: var(--danger-color);
+        }
+
+        .form-control {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.25rem;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .radio-label input[type="radio"] {
+            accent-color: var(--accent-color);
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Config Panel */
+        .config-settings {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .setting-item.flex-center {
+            justify-content: center;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+        }
+
+        .toggle-group input[type="checkbox"] {
+            accent-color: var(--accent-color);
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .toggle-group label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .help-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Range Sliders */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            accent-color: var(--accent-color);
+        }
+
+        .slider-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .mapping-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 2.5rem;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-lg {
+            padding: 0.9rem 2.5rem;
+            font-size: 1rem;
+            border-radius: 12px;
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+            box-shadow: 0 4px 14px var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+            box-shadow: 0 4px 14px var(--success-glow);
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--success-glow);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Dashboard Metrics */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .metric-card.reconciled::before { background: var(--success-color); }
+        .metric-card.mismatch.warning::before { background: var(--warning-color); }
+        .metric-card.mismatch.danger::before { background: var(--danger-color); }
+        .metric-card.net-diff::before { background: var(--accent-color); }
+
+        .metric-info h3 {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value {
+            font-family: var(--font-heading);
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-footer {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .metric-icon {
+            font-size: 2rem;
+            opacity: 0.2;
+        }
+
+        .metric-card.reconciled .metric-icon { color: var(--success-color); }
+        .metric-card.warning .metric-icon { color: var(--warning-color); }
+        .metric-card.danger .metric-icon { color: var(--danger-color); }
+        .metric-card.net-diff .metric-icon { color: var(--accent-color); }
+
+        /* Tables & Tabs */
+        .details-card {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 1.5rem;
+            background: rgba(0, 0, 0, 0.15);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .tab-buttons {
+            display: flex;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 1.25rem 1.5rem;
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .tab-btn::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--accent-color);
+            transform: scaleX(0);
+            transition: transform 0.2s ease;
+        }
+
+        .tab-btn.active::after {
+            transform: scaleX(1);
+        }
+
+        .tab-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 9px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0 6px;
+            color: white;
+        }
+
+        .tab-badge.success { background: var(--success-color); }
+        .tab-badge.warning { background: var(--warning-color); }
+        .tab-badge.danger { background: var(--danger-color); }
+
+        .header-actions {
+            padding: 0.75rem 0;
+        }
+
+        /* Tab panes */
+        .tab-pane {
+            display: none;
+            padding: 1.5rem;
+        }
+
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn 0.25s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Table Control Bar */
+        .table-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .table-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+        .search-box {
+            position: relative;
+            flex: 0 0 350px;
+            max-width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .search-box {
+                flex: 1;
+            }
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.65rem 1rem 0.65rem 2.5rem;
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.85rem;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .table-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 450px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        .table th, .table td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        .table th {
+            background: rgba(255, 255, 255, 0.02);
+            font-weight: 600;
+            color: var(--text-secondary);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.015);
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-success { color: var(--success-color); }
+        .text-danger { color: var(--danger-color); }
+
+        /* Matched Pairs Custom Columns */
+        .header-split {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.04) !important;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .header-divider {
+            width: 1px;
+            padding: 0 !important;
+            background: var(--border-color);
+        }
+
+        .cell-divider {
+            padding: 0 !important;
+            border-left: 1px solid var(--border-color);
+        }
+
+        /* Spinner Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2.5rem;
+            border-radius: 20px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+            margin: 0 auto 1.5rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .modal h3 {
+            font-family: var(--font-heading);
+            margin-bottom: 0.5rem;
+        }
+
+        .modal p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-scale-balanced logo-icon"></i>
+                <div class="logo-text">
+                    <h1>QBD Reconciler</h1>
+                    <span>Standalone Client-side Assistant</span>
+                </div>
+            </div>
+            <div class="header-status" id="headerStatus">
+                <span class="status-badge idle"><span class="pulse-dot"></span> Ready to Reconcile</span>
+            </div>
+        </header>
+
+        <main class="app-main">
+            <!-- STEP 1: Upload Files -->
+            <section class="card upload-section" id="uploadCard">
+                <div class="card-header">
+                    <h2><span class="step-num">1</span> Upload Files</h2>
+                    <p class="card-subtitle">Choose your QuickBooks register and bank statement files (.csv, .xlsx, .xls)</p>
+                </div>
+                <div class="upload-grid">
+                    <!-- QuickBooks Dropzone -->
+                    <div class="dropzone" id="qbDropzone">
+                        <input type="file" id="qbFileInput" accept=".csv,.xlsx,.xls,.txt" style="display: none;">
+                        <div class="dropzone-content">
+                            <i class="fa-solid fa-file-invoice-dollar icon-upload"></i>
+                            <h3>QuickBooks Register</h3>
+                            <p class="dropzone-desc">Drag & drop or <span class="browse-link">browse</span></p>
+                            <p class="file-info" id="qbFileInfo">No file selected</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Bank Statement Dropzone -->
+                    <div class="dropzone" id="bankDropzone">
+                        <input type="file" id="bankFileInput" accept=".csv,.xlsx,.xls,.txt" style="display: none;">
+                        <div class="dropzone-content">
+                            <i class="fa-solid fa-building-columns icon-upload"></i>
+                            <h3>Bank Statement</h3>
+                            <p class="dropzone-desc">Drag & drop or <span class="browse-link">browse</span></p>
+                            <p class="file-info" id="bankFileInfo">No file selected</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="upload-actions" id="analyzeActions" style="display: none;">
+                    <button class="btn btn-primary" id="btnAnalyze">
+                        <i class="fa-solid fa-magnifying-glass"></i> Analyze Columns
+                    </button>
+                </div>
+            </section>
+
+            <!-- STEP 2: Column Mapping & Settings -->
+            <section class="card mapping-section" id="mappingCard" style="display: none;">
+                <div class="card-header">
+                    <h2><span class="step-num">2</span> Column Mapping & Config</h2>
+                    <p class="card-subtitle">Map the data columns and adjust reconciliation matching parameters</p>
+                </div>
+                
+                <div class="mapping-grid">
+                    <!-- QB Mapping -->
+                    <div class="mapping-col">
+                        <h3 class="mapping-title"><i class="fa-solid fa-list-check"></i> QuickBooks Register Mapping</h3>
+                        <div class="form-group">
+                            <label for="qbColDate">Date Column <span class="required">*</span></label>
+                            <select id="qbColDate" class="form-control" required></select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Amount Style</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="qbAmountStyle" value="single" checked> Single Column
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="qbAmountStyle" value="split"> Split Column (Payment / Deposit)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="qbSingleAmountGroup" class="form-group">
+                            <label for="qbColAmount">Amount Column <span class="required">*</span></label>
+                            <select id="qbColAmount" class="form-control"></select>
+                        </div>
+                        
+                        <div id="qbSplitAmountGroup" class="form-group-row" style="display: none;">
+                            <div class="form-group half">
+                                <label for="qbColPayment">Payment / Charge <span class="required">*</span></label>
+                                <select id="qbColPayment" class="form-control"></select>
+                            </div>
+                            <div class="form-group half">
+                                <label for="qbColDeposit">Deposit / Credit <span class="required">*</span></label>
+                                <select id="qbColDeposit" class="form-control"></select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="qbColDesc">Description / Payee Column <span class="required">*</span></label>
+                            <select id="qbColDesc" class="form-control" required></select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="qbColRef">Check / Ref Number Column (Optional)</label>
+                            <select id="qbColRef" class="form-control"></select>
+                        </div>
+                    </div>
+                    
+                    <!-- Bank Mapping -->
+                    <div class="mapping-col">
+                        <h3 class="mapping-title"><i class="fa-solid fa-list-check"></i> Bank Statement Mapping</h3>
+                        <div class="form-group">
+                            <label for="bankColDate">Date Column <span class="required">*</span></label>
+                            <select id="bankColDate" class="form-control" required></select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Amount Style</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="bankAmountStyle" value="single" checked> Single Column
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="bankAmountStyle" value="split"> Split Column (Debit / Credit)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="bankSingleAmountGroup" class="form-group">
+                            <label for="bankColAmount">Amount Column <span class="required">*</span></label>
+                            <select id="bankColAmount" class="form-control"></select>
+                        </div>
+                        
+                        <div id="bankSplitAmountGroup" class="form-group-row" style="display: none;">
+                            <div class="form-group half">
+                                <label for="bankColDebit">Debit / Withdrawal <span class="required">*</span></label>
+                                <select id="bankColDebit" class="form-control"></select>
+                            </div>
+                            <div class="form-group half">
+                                <label for="bankColCredit">Credit / Deposit <span class="required">*</span></label>
+                                <select id="bankColCredit" class="form-control"></select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bankColDesc">Description Column <span class="required">*</span></label>
+                            <select id="bankColDesc" class="form-control" required></select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bankColRef">Ref / Check Number Column (Optional)</label>
+                            <select id="bankColRef" class="form-control"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="config-settings">
+                    <h3 class="mapping-title"><i class="fa-solid fa-sliders"></i> Matching Engine Parameters</h3>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="dateTolerance">Date Tolerance (Days)</label>
+                            <div class="slider-container">
+                                <input type="range" id="dateTolerance" min="0" max="14" value="3" class="slider">
+                                <span class="slider-value" id="dateToleranceVal">3 days</span>
+                            </div>
+                            <span class="help-text">Max days difference between ledger and bank clearing dates.</span>
+                        </div>
+
+                        <div class="setting-item">
+                            <label for="fuzzyThreshold">Description Similarity Threshold</label>
+                            <div class="slider-container">
+                                <input type="range" id="fuzzyThreshold" min="50" max="100" value="80" class="slider">
+                                <span class="slider-value" id="fuzzyThresholdVal">80%</span>
+                            </div>
+                            <span class="help-text">Minimum text likeness ratio for description matching.</span>
+                        </div>
+
+                        <div class="setting-item flex-center">
+                            <div class="toggle-group">
+                                <input type="checkbox" id="matchRef" checked>
+                                <label for="matchRef">Prioritize Check Number Matches</label>
+                            </div>
+                            <span class="help-text">Strictly pair exact Check Numbers first.</span>
+                        </div>
+
+                        <div class="setting-item flex-center">
+                            <div class="toggle-group">
+                                <input type="checkbox" id="invertBank">
+                                <label for="invertBank">Invert Bank Statement Amount Signs</label>
+                            </div>
+                            <span class="help-text">Check if Bank deposits are represented as negative.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mapping-actions">
+                    <button class="btn btn-success btn-lg" id="btnReconcile">
+                        <i class="fa-solid fa-play"></i> Run Reconciliation
+                    </button>
+                </div>
+            </section>
+
+            <!-- STEP 3: Results Dashboard -->
+            <section class="dashboard-section" id="resultsSection" style="display: none;">
+                <!-- Metrics -->
+                <div class="metrics-grid">
+                    <div class="metric-card reconciled">
+                        <div class="metric-info">
+                            <h3>Reconciliation Rate</h3>
+                            <div class="metric-value" id="rateVal">0.0%</div>
+                            <p class="metric-footer" id="matchedCountVal">0 matched pairs</p>
+                        </div>
+                        <i class="fa-solid fa-circle-check metric-icon"></i>
+                    </div>
+
+                    <div class="metric-card mismatch warning">
+                        <div class="metric-info">
+                            <h3>Missing in QuickBooks</h3>
+                            <div class="metric-value" id="missingCountVal">0</div>
+                            <p class="metric-footer" id="missingNetVal">$0.00 net value</p>
+                        </div>
+                        <i class="fa-solid fa-circle-exclamation metric-icon"></i>
+                    </div>
+
+                    <div class="metric-card mismatch danger">
+                        <div class="metric-info">
+                            <h3>Extra in QuickBooks</h3>
+                            <div class="metric-value" id="extraCountVal">0</div>
+                            <p class="metric-footer" id="extraNetVal">$0.00 net value</p>
+                        </div>
+                        <i class="fa-solid fa-triangle-exclamation metric-icon"></i>
+                    </div>
+
+                    <div class="metric-card net-diff">
+                        <div class="metric-info">
+                            <h3>Total Net Discrepancy</h3>
+                            <div class="metric-value" id="netDiffVal">$0.00</div>
+                            <p class="metric-footer">Total unmatched gap</p>
+                        </div>
+                        <i class="fa-solid fa-chart-line-down metric-icon"></i>
+                    </div>
+                </div>
+
+                <!-- Tabs & Tables -->
+                <div class="card details-card">
+                    <div class="details-header">
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" data-tab="missingTab">
+                                <i class="fa-solid fa-circle-question"></i> Missing in QuickBooks <span class="tab-badge warning" id="missingTabBadge">0</span>
+                            </button>
+                            <button class="tab-btn" data-tab="extraTab">
+                                <i class="fa-solid fa-circle-xmark"></i> Extra in QuickBooks <span class="tab-badge danger" id="extraTabBadge">0</span>
+                            </button>
+                            <button class="tab-btn" data-tab="matchedTab">
+                                <i class="fa-solid fa-link"></i> Reconciled Matches <span class="tab-badge success" id="matchedTabBadge">0</span>
+                            </button>
+                        </div>
+                        <div class="header-actions">
+                            <button class="btn btn-secondary" id="btnExport">
+                                <i class="fa-solid fa-file-excel"></i> Export Report to Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tab-content-container">
+                        <!-- Tab 1: Missing -->
+                        <div class="tab-pane active" id="missingTab">
+                            <div class="table-bar">
+                                <div class="search-box">
+                                    <i class="fa-solid fa-search"></i>
+                                    <input type="text" id="searchMissing" placeholder="Filter missing transactions...">
+                                </div>
+                                <span class="table-meta">These bank transactions have no matching record in QuickBooks.</span>
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="table" id="tableMissing">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Ref #</th>
+                                            <th>Description</th>
+                                            <th class="text-right">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Extra -->
+                        <div class="tab-pane" id="extraTab">
+                            <div class="table-bar">
+                                <div class="search-box">
+                                    <i class="fa-solid fa-search"></i>
+                                    <input type="text" id="searchExtra" placeholder="Filter extra register items...">
+                                </div>
+                                <span class="table-meta">These QuickBooks register records do not clear on the bank statement.</span>
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="table" id="tableExtra">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Ref #</th>
+                                            <th>Description</th>
+                                            <th class="text-right">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Matched -->
+                        <div class="tab-pane" id="matchedTab">
+                            <div class="table-bar">
+                                <div class="search-box">
+                                    <i class="fa-solid fa-search"></i>
+                                    <input type="text" id="searchMatched" placeholder="Filter matches...">
+                                </div>
+                                <span class="table-meta">Reconciled matches found between bank and QuickBooks.</span>
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="table" id="tableMatched">
+                                    <thead>
+                                        <tr>
+                                            <th colspan="3" class="header-split">QuickBooks Register</th>
+                                            <th class="header-divider"></th>
+                                            <th colspan="3" class="header-split">Bank Statement</th>
+                                            <th></th>
+                                        </tr>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Ref #</th>
+                                            <th>Description / Payee</th>
+                                            <th class="header-divider"></th>
+                                            <th>Date</th>
+                                            <th>Description</th>
+                                            <th class="text-right">Amount</th>
+                                            <th>Match Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal" id="loadingModal">
+        <div class="modal-content">
+            <div class="spinner"></div>
+            <h3 id="modalMsg">Processing files...</h3>
+            <p>Done entirely in-browser. Your financial data never leaves your computer.</p>
+        </div>
+    </div>
+
+    <script>
+        // Standalone Client App State
+        let qbRowsRaw = [];
+        let bankRowsRaw = [];
+        let qbHeaders = [];
+        let bankHeaders = [];
+        
+        let reconciliationResults = null;
+
+        // Dropzones
+        const qbDropzone = document.getElementById('qbDropzone');
+        const qbFileInput = document.getElementById('qbFileInput');
+        const qbFileInfo = document.getElementById('qbFileInfo');
+        const bankDropzone = document.getElementById('bankDropzone');
+        const bankFileInput = document.getElementById('bankFileInput');
+        const bankFileInfo = document.getElementById('bankFileInfo');
+
+        const btnAnalyze = document.getElementById('btnAnalyze');
+        const analyzeActions = document.getElementById('analyzeActions');
+        const mappingCard = document.getElementById('mappingCard');
+        const btnReconcile = document.getElementById('btnReconcile');
+        const btnExport = document.getElementById('btnExport');
+        const resultsSection = document.getElementById('resultsSection');
+        const headerStatus = document.getElementById('headerStatus');
+        const loadingModal = document.getElementById('loadingModal');
+        const modalMsg = document.getElementById('modalMsg');
+
+        // Form Selects
+        const qbColDate = document.getElementById('qbColDate');
+        const qbColAmount = document.getElementById('qbColAmount');
+        const qbColPayment = document.getElementById('qbColPayment');
+        const qbColDeposit = document.getElementById('qbColDeposit');
+        const qbColDesc = document.getElementById('qbColDesc');
+        const qbColRef = document.getElementById('qbColRef');
+
+        const bankColDate = document.getElementById('bankColDate');
+        const bankColAmount = document.getElementById('bankColAmount');
+        const bankColDebit = document.getElementById('bankColDebit');
+        const bankColCredit = document.getElementById('bankColCredit');
+        const bankColDesc = document.getElementById('bankColDesc');
+        const bankColRef = document.getElementById('bankColRef');
+
+        // Settings
+        const dateToleranceInput = document.getElementById('dateTolerance');
+        const dateToleranceVal = document.getElementById('dateToleranceVal');
+        const fuzzyThresholdInput = document.getElementById('fuzzyThreshold');
+        const fuzzyThresholdVal = document.getElementById('fuzzyThresholdVal');
+        const matchRefInput = document.getElementById('matchRef');
+        const invertBankInput = document.getElementById('invertBank');
+
+        // Text labels update
+        dateToleranceInput.addEventListener('input', (e) => {
+            dateToleranceVal.textContent = e.target.value + (e.target.value === '1' ? ' day' : ' days');
+        });
+        fuzzyThresholdInput.addEventListener('input', (e) => {
+            fuzzyThresholdVal.textContent = e.target.value + '%';
+        });
+
+        // Setup dropzones
+        function setupDropzone(dropzone, input, fileInfo, setterCallback) {
+            dropzone.addEventListener('click', () => input.click());
+            input.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) parseUploadedFile(e.target.files[0], dropzone, fileInfo, setterCallback);
+            });
+            dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+            dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) parseUploadedFile(e.dataTransfer.files[0], dropzone, fileInfo, setterCallback);
+            });
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        setupDropzone(qbDropzone, qbFileInput, qbFileInfo, (headers, rows) => {
+            qbHeaders = headers;
+            qbRowsRaw = rows;
+        });
+        setupDropzone(bankDropzone, bankFileInput, bankFileInfo, (headers, rows) => {
+            bankHeaders = headers;
+            bankRowsRaw = rows;
+        });
+
+        // Robust parsing of CSV or Excel with header skipping
+        function parseUploadedFile(file, dropzone, fileInfo, callback) {
+            showLoading(`Reading ${file.name}...`);
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    let data = new Uint8Array(e.target.result);
+                    let workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                    let sheetName = workbook.SheetNames[0];
+                    let sheet = workbook.Sheets[sheetName];
+                    let aoa = XLSX.utils.sheet_to_json(sheet, {header: 1});
+                    
+                    let parsed = extractHeaderAndData(aoa);
+                    callback(parsed.headers, parsed.dataRows);
+                    
+                    dropzone.classList.add('has-file');
+                    fileInfo.textContent = `${file.name} (${formatBytes(file.size)})`;
+                    hideLoading();
+                    
+                    // Show analyze button if both loaded
+                    if (qbRowsRaw.length > 0 && bankRowsRaw.length > 0) {
+                        analyzeActions.style.display = 'flex';
+                    }
+                } catch (err) {
+                    hideLoading();
+                    alert(`Error parsing file: ${err.message}`);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Row/Title skippper heuristic
+        function extractHeaderAndData(aoa) {
+            let financialKeywords = ['date', 'amount', 'payee', 'memo', 'desc', 'num', 'ref', 'chk', 'check', 'pay', 'dep', 'val', 'bal', 'card', 'category'];
+            let bestRowIdx = 0;
+            let maxScore = -1;
+            
+            for (let idx = 0; idx < Math.min(15, aoa.length); idx++) {
+                let row = aoa[idx];
+                if (!row) continue;
+                let nonNullFields = row.map(v => String(v === null || v === undefined ? '' : v).trim()).filter(v => v !== '');
+                let currCols = nonNullFields.length;
+                if (currCols <= 2) continue;
+                
+                let keywordMatches = 0;
+                for (let field of nonNullFields) {
+                    if (financialKeywords.some(kw => field.toLowerCase().includes(kw))) {
+                        keywordMatches++;
+                    }
+                }
+                
+                let score = keywordMatches * 5 + currCols;
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestRowIdx = idx;
+                }
+            }
+            
+            let finalHeaders = [];
+            let dataRows = [];
+            
+            if (maxScore >= 0) {
+                let rawHeaders = aoa[bestRowIdx];
+                finalHeaders = rawHeaders.map((h, i) => h !== null && h !== undefined && String(h).trim() !== '' ? String(h).trim() : `Column_${i+1}`);
+                
+                for (let i = bestRowIdx + 1; i < aoa.length; i++) {
+                    let row = aoa[i];
+                    if (!row || row.length === 0) continue;
+                    // Check if it's a completely empty line
+                    if (row.every(v => v === null || v === undefined || String(v).trim() === '')) continue;
+                    
+                    let obj = {};
+                    for (let j = 0; j < finalHeaders.length; j++) {
+                        obj[finalHeaders[j]] = row[j] !== undefined && row[j] !== null ? row[j] : "";
+                    }
+                    dataRows.push(obj);
+                }
+            } else {
+                // Fallback
+                finalHeaders = aoa[0].map((h, i) => h !== null && h !== undefined && String(h).trim() !== '' ? String(h).trim() : `Column_${i+1}`);
+                for (let i = 1; i < aoa.length; i++) {
+                    let row = aoa[i];
+                    if (!row) continue;
+                    let obj = {};
+                    for (let j = 0; j < finalHeaders.length; j++) {
+                        obj[finalHeaders[j]] = row[j] !== undefined && row[j] !== null ? row[j] : "";
+                    }
+                    dataRows.push(obj);
+                }
+            }
+            return { headers: finalHeaders, dataRows: dataRows };
+        }
+
+        // Single vs Split columns radio setup
+        function setupAmountRadioListeners(radioName, singleGroup, splitGroup) {
+            document.querySelectorAll(`input[name="${radioName}"]`).forEach(r => {
+                r.addEventListener('change', (e) => {
+                    if (e.target.value === 'single') {
+                        singleGroup.style.display = 'flex';
+                        splitGroup.style.display = 'none';
+                    } else {
+                        singleGroup.style.display = 'none';
+                        splitGroup.style.display = 'flex';
+                    }
+                });
+            });
+        }
+        setupAmountRadioListeners('qbAmountStyle', document.getElementById('qbSingleAmountGroup'), document.getElementById('qbSplitAmountGroup'));
+        setupAmountStyleToggles('bankAmountStyle', document.getElementById('bankSingleAmountGroup'), document.getElementById('bankSplitAmountGroup'));
+
+        function setupAmountStyleToggles(name, singleGroup, splitGroup) {
+            document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+                r.addEventListener('change', (e) => {
+                    if (e.target.value === 'single') {
+                        singleGroup.style.display = 'flex';
+                        splitGroup.style.display = 'none';
+                    } else {
+                        singleGroup.style.display = 'none';
+                        splitGroup.style.display = 'flex';
+                    }
+                });
+            });
+        }
+
+        // Helper selects
+        function populateSelect(selectEl, columns, placeholder = "-- Select Column --") {
+            selectEl.innerHTML = '';
+            let optPlaceholder = document.createElement('option');
+            optPlaceholder.value = '';
+            optPlaceholder.textContent = placeholder;
+            selectEl.appendChild(optPlaceholder);
+            
+            columns.forEach(col => {
+                let opt = document.createElement('option');
+                opt.value = col;
+                opt.textContent = col;
+                selectEl.appendChild(opt);
+            });
+        }
+
+        function autoMapColumn(selectEl, columns, keywords) {
+            for (let col of columns) {
+                let colLower = col.toLowerCase();
+                for (let kw of keywords) {
+                    if (colLower === kw || colLower.includes(' ' + kw) || colLower.includes(kw + ' ') || colLower.startsWith(kw)) {
+                        selectEl.value = col;
+                        return;
+                    }
+                }
+            }
+        }
+
+        btnAnalyze.addEventListener('click', () => {
+            populateSelect(qbColDate, qbHeaders);
+            populateSelect(qbColAmount, qbHeaders);
+            populateSelect(qbColPayment, qbHeaders);
+            populateSelect(qbColDeposit, qbHeaders);
+            populateSelect(qbColDesc, qbHeaders);
+            populateSelect(qbColRef, qbHeaders, "-- Optional (No Ref) --");
+
+            populateSelect(bankColDate, bankHeaders);
+            populateSelect(bankColAmount, bankHeaders);
+            populateSelect(bankColDebit, bankHeaders);
+            populateSelect(bankColCredit, bankHeaders);
+            populateSelect(bankColDesc, bankHeaders);
+            populateSelect(bankColRef, bankHeaders, "-- Optional (No Ref) --");
+
+            // Automapping
+            autoMapColumn(qbColDate, qbHeaders, ['date', 'posting date', 'txn date']);
+            autoMapColumn(qbColAmount, qbHeaders, ['amount', 'amount reconciled', 'net amount', 'total']);
+            autoMapColumn(qbColPayment, qbHeaders, ['payment', 'charge', 'payment/charge', 'outflow', 'debit', 'withdrawn']);
+            autoMapColumn(qbColDeposit, qbHeaders, ['deposit', 'deposit/credit', 'credit', 'inflow', 'received']);
+            autoMapColumn(qbColDesc, qbHeaders, ['payee', 'name', 'memo', 'description', 'vendor']);
+            autoMapColumn(qbColRef, qbHeaders, ['num', 'ref', 'number', 'check number', 'check', 'check num', 'doc #']);
+
+            autoMapColumn(bankColDate, bankHeaders, ['date', 'posting date', 'post date', 'transaction date']);
+            autoMapColumn(bankColAmount, bankHeaders, ['amount', 'net', 'value', 'transaction amount']);
+            autoMapColumn(bankColDebit, bankHeaders, ['debit', 'withdrawal', 'withdrawals', 'outflow', 'charge']);
+            autoMapColumn(bankColCredit, bankHeaders, ['credit', 'deposit', 'deposits', 'inflow', 'received']);
+            autoMapColumn(bankColDesc, bankHeaders, ['description', 'memo', 'name', 'payee', 'transaction details', 'text']);
+            autoMapColumn(bankColRef, bankHeaders, ['ref', 'reference', 'check number', 'check', 'num']);
+
+            // Auto toggle split columns
+            const hasQBSplit = qbHeaders.some(c => c.toLowerCase().includes('payment')) && qbHeaders.some(c => c.toLowerCase().includes('deposit'));
+            if (hasQBSplit && !qbColAmount.value) {
+                document.querySelector('input[name="qbAmountStyle"][value="split"]').checked = true;
+                document.getElementById('qbSingleAmountGroup').style.display = 'none';
+                document.getElementById('qbSplitAmountGroup').style.display = 'flex';
+            }
+            
+            const hasBankSplit = bankHeaders.some(c => c.toLowerCase().includes('debit') || c.toLowerCase().includes('withdrawal')) && 
+                                  bankHeaders.some(c => c.toLowerCase().includes('credit') || c.toLowerCase().includes('deposit'));
+            if (hasBankSplit && !bankColAmount.value) {
+                document.querySelector('input[name="bankAmountStyle"][value="split"]').checked = true;
+                document.getElementById('bankSingleAmountGroup').style.display = 'none';
+                document.getElementById('bankSplitAmountGroup').style.display = 'flex';
+            }
+
+            mappingCard.style.display = 'block';
+            mappingCard.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // ----------------------------------------------------
+        // CLIENT MATCHING ALGORITHM
+        // ----------------------------------------------------
+        function cleanAmount(val) {
+            if (val === null || val === undefined) return 0.0;
+            if (typeof val === 'number') return val;
+            if (val instanceof Date) return 0.0;
+            let valStr = String(val).trim();
+            if (valStr === '') return 0.0;
+            
+            let hasParentheses = false;
+            if (valStr.startsWith('(') && valStr.endsWith(')')) {
+                hasParentheses = true;
+                valStr = valStr.substring(1, valStr.length - 1);
+            }
+            
+            let hasTrailingMinus = false;
+            if (valStr.endsWith('-')) {
+                hasTrailingMinus = true;
+                valStr = valStr.substring(0, valStr.length - 1);
+            }
+            
+            valStr = valStr.replace(/[^\d.-]/g, '');
+            let amount = parseFloat(valStr);
+            if (isNaN(amount)) return 0.0;
+            if (hasParentheses || hasTrailingMinus) amount = -amount;
+            return amount;
+        }
+
+        function parseDate(val) {
+            if (!val) return null;
+            if (val instanceof Date) return val;
+            let d = new Date(val);
+            if (isNaN(d.getTime())) return null;
+            return d;
+        }
+
+        function cleanRef(val) {
+            if (val === null || val === undefined) return "";
+            let s = String(val).trim();
+            if (/^\d+$/.test(s)) return String(parseInt(s, 10));
+            return s.toLowerCase();
+        }
+
+        function cleanDescription(val) {
+            if (!val) return "";
+            return String(val).trim().replace(/\s+/g, ' ').toLowerCase();
+        }
+
+        // Sørensen-Dice coefficient similarity metric
+        function getSimilarity(s1, s2) {
+            let clean1 = s1.toLowerCase().replace(/[^a-z0-9]/g, '');
+            let clean2 = s2.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (clean1 === clean2) return 100.0;
+            if (clean1.length < 2 || clean2.length < 2) return 0.0;
+            
+            let bigrams1 = new Map();
+            for (let i = 0; i < clean1.length - 1; i++) {
+                let bigram = clean1.substring(i, i + 2);
+                bigrams1.set(bigram, (bigrams1.get(bigram) || 0) + 1);
+            }
+            
+            let intersection = 0;
+            for (let i = 0; i < clean2.length - 1; i++) {
+                let bigram = clean2.substring(i, i + 2);
+                let count = bigrams1.get(bigram) || 0;
+                if (count > 0) {
+                    bigrams1.set(bigram, count - 1);
+                    intersection++;
+                }
+            }
+            
+            return (2.0 * intersection) / (clean1.length + clean2.length - 2) * 100.0;
+        }
+
+        function preprocessData(rows, mapping, invert) {
+            let standardized = [];
+            let colDate = mapping.date;
+            let colDesc = mapping.description;
+            let colRef = mapping.ref;
+            let colAmount = mapping.amount;
+            let colPayment = mapping.payment;
+            let colDeposit = mapping.deposit;
+            
+            for (let i = 0; i < rows.length; i++) {
+                let row = rows[i];
+                let dateVal = row[colDate];
+                let parsedDate = parseDate(dateVal);
+                if (!parsedDate) continue;
+                
+                let netAmount = 0.0;
+                if (colAmount) {
+                    netAmount = cleanAmount(row[colAmount]);
+                } else {
+                    let inflow = colDeposit ? cleanAmount(row[colDeposit]) : 0.0;
+                    let outflow = colPayment ? cleanAmount(row[colPayment]) : 0.0;
+                    if (outflow > 0 && inflow >= 0) {
+                        netAmount = inflow - outflow;
+                    } else if (outflow < 0) {
+                        netAmount = inflow + outflow;
+                    } else {
+                        netAmount = inflow;
+                    }
+                }
+                
+                if (invert) netAmount = -netAmount;
+                
+                standardized.push({
+                    id: i,
+                    date: parsedDate,
+                    amount: netAmount,
+                    description: cleanDescription(row[colDesc]),
+                    ref: cleanRef(row[colRef]),
+                    original_row: row
+                });
+            }
+            return standardized;
+        }
+
+        // Run reconciliation matching in JS
+        function runReconciliation(regData, bankData, regMapping, bankMapping, params) {
+            let dateTolerance = parseInt(params.dateTolerance, 10);
+            let fuzzyThreshold = parseFloat(params.fuzzyThreshold);
+            let matchRef = params.matchRef;
+            let invertBank = params.invertBank;
+            
+            let regCleaned = preprocessData(regData, regMapping, false);
+            let bankCleaned = preprocessData(bankData, bankMapping, invertBank);
+            
+            let matchedPairs = [];
+            let matchedRegIds = new Set();
+            let matchedBankIds = new Set();
+            
+            // Pass 1: Check match ref + amount + date within tolerance
+            if (matchRef) {
+                for (let i = 0; i < bankCleaned.length; i++) {
+                    let rowBank = bankCleaned[i];
+                    if (rowBank.ref === "") continue;
+                    
+                    let candidates = [];
+                    for (let j = 0; j < regCleaned.length; j++) {
+                        let rowReg = regCleaned[j];
+                        if (matchedRegIds.has(rowReg.id)) continue;
+                        if (rowReg.ref === "") continue;
+                        
+                        if (rowReg.ref === rowBank.ref && Math.abs(rowReg.amount - rowBank.amount) < 0.005) {
+                            let daysDiff = Math.abs((rowBank.date - rowReg.date) / (1000 * 60 * 60 * 24));
+                            if (daysDiff <= dateTolerance) {
+                                candidates.push({ idxReg: rowReg.id, rowReg, daysDiff });
+                            }
+                        }
+                    }
+                    
+                    if (candidates.length > 0) {
+                        candidates.sort((a, b) => a.daysDiff - b.daysDiff);
+                        let best = candidates[0];
+                        matchedRegIds.add(best.idxReg);
+                        matchedBankIds.add(rowBank.id);
+                        matchedPairs.push({
+                            register: best.rowReg,
+                            bank: rowBank,
+                            match_type: 'Ref & Amount Match',
+                            details: `Matched on reference number '${rowBank.ref}' and amount. Date difference: ${Math.round(best.daysDiff)} days.`
+                        });
+                    }
+                }
+            }
+            
+            // Pass 2: Match by exact amount and date (same day) with description similarity
+            for (let i = 0; i < bankCleaned.length; i++) {
+                let rowBank = bankCleaned[i];
+                if (matchedBankIds.has(rowBank.id)) continue;
+                
+                let candidates = [];
+                for (let j = 0; j < regCleaned.length; j++) {
+                    let rowReg = regCleaned[j];
+                    if (matchedRegIds.has(rowReg.id)) continue;
+                    
+                    let isSameDay = rowBank.date.getFullYear() === rowReg.date.getFullYear() &&
+                                    rowBank.date.getMonth() === rowReg.date.getMonth() &&
+                                    rowBank.date.getDate() === rowReg.date.getDate();
+                                    
+                    if (isSameDay && Math.abs(rowReg.amount - rowBank.amount) < 0.005) {
+                        let sim = getSimilarity(rowBank.description, rowReg.description);
+                        candidates.push({ idxReg: rowReg.id, rowReg, sim });
+                    }
+                }
+                
+                if (candidates.length > 0) {
+                    candidates.sort((a, b) => b.sim - a.sim);
+                    let best = candidates[0];
+                    if (best.sim >= fuzzyThreshold || candidates.length === 1) {
+                        matchedRegIds.add(best.idxReg);
+                        matchedBankIds.add(rowBank.id);
+                        matchedPairs.push({
+                            register: best.rowReg,
+                            bank: rowBank,
+                            match_type: 'Amount & Date Match',
+                            details: `Matched on same day and amount. Description similarity: ${best.sim.toFixed(1)}%.`
+                        });
+                    }
+                }
+            }
+            
+            // Pass 3: Match by Amount and Date within tolerance
+            for (let i = 0; i < bankCleaned.length; i++) {
+                let rowBank = bankCleaned[i];
+                if (matchedBankIds.has(rowBank.id)) continue;
+                
+                let candidates = [];
+                for (let j = 0; j < regCleaned.length; j++) {
+                    let rowReg = regCleaned[j];
+                    if (matchedRegIds.has(rowReg.id)) continue;
+                    
+                    if (Math.abs(rowReg.amount - rowBank.amount) < 0.005) {
+                        let daysDiff = Math.abs((rowBank.date - rowReg.date) / (1000 * 60 * 60 * 24));
+                        if (daysDiff <= dateTolerance) {
+                            let sim = getSimilarity(rowBank.description, rowReg.description);
+                            candidates.push({ idxReg: rowReg.id, rowReg, daysDiff, sim });
+                        }
+                    }
+                }
+                
+                if (candidates.length > 0) {
+                    candidates.sort((a, b) => b.sim - a.sim || a.daysDiff - b.daysDiff);
+                    let best = candidates[0];
+                    if (best.sim >= fuzzyThreshold || candidates.length === 1 || best.daysDiff <= 1) {
+                        matchedRegIds.add(best.idxReg);
+                        matchedBankIds.add(rowBank.id);
+                        matchedPairs.push({
+                            register: best.rowReg,
+                            bank: rowBank,
+                            match_type: 'Amount & Date Tolerance Match',
+                            details: `Matched on amount with ${Math.round(best.daysDiff)} days difference. Description similarity: ${best.sim.toFixed(1)}%.`
+                        });
+                    }
+                }
+            }
+            
+            let unmatchedRegister = regCleaned.filter(r => !matchedRegIds.has(r.id));
+            let unmatchedBank = bankCleaned.filter(b => !matchedBankIds.has(b.id));
+            
+            let totalReconciledAmount = matchedPairs.reduce((sum, p) => sum + p.bank.amount, 0);
+            let netUnmatchedRegister = unmatchedRegister.reduce((sum, r) => sum + r.amount, 0);
+            let netUnmatchedBank = unmatchedBank.reduce((sum, b) => sum + b.amount, 0);
+            
+            let matchRate = bankCleaned.length > 0 ? (matchedPairs.length / bankCleaned.length * 100) : 0;
+            
+            return {
+                stats: {
+                    totalRegister: regCleaned.length,
+                    totalBank: bankCleaned.length,
+                    matchedCount: matchedPairs.length,
+                    unmatchedRegisterCount: unmatchedRegister.length,
+                    unmatchedBankCount: unmatchedBank.length,
+                    matchRate: parseFloat(matchRate.toFixed(2)),
+                    totalReconciledAmount: parseFloat(totalReconciledAmount.toFixed(2)),
+                    netUnmatchedRegister: parseFloat(netUnmatchedRegister.toFixed(2)),
+                    netUnmatchedBank: parseFloat(netUnmatchedBank.toFixed(2))
+                },
+                matched: matchedPairs,
+                unmatchedRegister: unmatchedRegister,
+                unmatchedBank: unmatchedBank
+            };
+        }
+
+        // Reconcile Trigger
+        btnReconcile.addEventListener('click', () => {
+            const qbAmtStyle = document.querySelector('input[name="qbAmountStyle"]:checked').value;
+            const bankAmtStyle = document.querySelector('input[name="bankAmountStyle"]:checked').value;
+            
+            if (!qbColDate.value || !qbColDesc.value) { alert("Map Date and Description for QuickBooks Register."); return; }
+            if (qbAmtStyle === 'single' && !qbColAmount.value) { alert("Map Amount for QuickBooks."); return; }
+            if (qbAmtStyle === 'split' && (!qbColPayment.value || !qbColDeposit.value)) { alert("Map both Payment and Deposit for QuickBooks."); return; }
+            
+            if (!bankColDate.value || !bankColDesc.value) { alert("Map Date and Description for Bank."); return; }
+            if (bankAmtStyle === 'single' && !bankColAmount.value) { alert("Map Amount for Bank."); return; }
+            if (bankAmtStyle === 'split' && (!bankColDebit.value || !bankColCredit.value)) { alert("Map both Debit and Credit for Bank."); return; }
+            
+            showLoading("Matching transactions client-side...");
+            
+            setTimeout(() => {
+                const regMapping = { date: qbColDate.value, description: qbColDesc.value, ref: qbColRef.value };
+                if (qbAmtStyle === 'single') regMapping.amount = qbColAmount.value;
+                else { regMapping.payment = qbColPayment.value; regMapping.deposit = qbColDeposit.value; }
+
+                const bankMapping = { date: bankColDate.value, description: bankColDesc.value, ref: bankColRef.value };
+                if (bankAmtStyle === 'single') bankMapping.amount = bankColAmount.value;
+                else { bankMapping.debit = bankColDebit.value; bankMapping.credit = bankColCredit.value; }
+                
+                const params = {
+                    dateTolerance: dateToleranceInput.value,
+                    fuzzyThreshold: fuzzyThresholdInput.value,
+                    matchRef: matchRefInput.checked,
+                    invertBank: invertBankInput.checked
+                };
+                
+                reconciliationResults = runReconciliation(qbRowsRaw, bankRowsRaw, regMapping, bankMapping, params);
+                
+                renderDashboard(reconciliationResults.stats);
+                renderTableMissing(bankMapping.description);
+                renderTableExtra(regMapping.description);
+                renderTableMatched(regMapping.description, bankMapping.description);
+                
+                headerStatus.innerHTML = `<span class="status-badge success"><span class="pulse-dot"></span> Reconciled (${reconciliationResults.stats.matchRate}%)</span>`;
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                
+                hideLoading();
+            }, 100);
+        });
+
+        // ----------------------------------------------------
+        // RENDER DETAILS & TABLES
+        // ----------------------------------------------------
+        function formatCurrency(val) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        }
+
+        function formatTableDate(d) {
+            if (!d) return '';
+            let month = '' + (d.getMonth() + 1);
+            let day = '' + d.getDate();
+            let year = d.getFullYear();
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+            return [month, day, year].join('/');
+        }
+
+        function renderDashboard(stats) {
+            document.getElementById('rateVal').textContent = `${stats.matchRate}%`;
+            document.getElementById('matchedCountVal').textContent = `${stats.matchedCount} matched pairs`;
+            document.getElementById('missingCountVal').textContent = stats.unmatchedBankCount;
+            document.getElementById('missingNetVal').textContent = `${formatCurrency(stats.netUnmatchedBank)} net`;
+            document.getElementById('extraCountVal').textContent = stats.unmatchedRegisterCount;
+            document.getElementById('extraNetVal').textContent = `${formatCurrency(stats.netUnmatchedRegister)} net`;
+            
+            let gap = Math.abs(stats.netUnmatchedBank - stats.netUnmatchedRegister);
+            document.getElementById('netDiffVal').textContent = formatCurrency(gap);
+            
+            document.getElementById('missingTabBadge').textContent = stats.unmatchedBankCount;
+            document.getElementById('extraTabBadge').textContent = stats.unmatchedRegisterCount;
+            document.getElementById('matchedTabBadge').textContent = stats.matchedCount;
+        }
+
+        function renderTableMissing(descCol) {
+            let tbody = document.querySelector('#tableMissing tbody');
+            tbody.innerHTML = '';
+            let data = reconciliationResults.unmatchedBank;
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-muted);">No missing transactions found. Perfect match!</td></tr>`;
+                return;
+            }
+            data.forEach(item => {
+                let tr = document.createElement('tr');
+                let amtClass = item.amount >= 0 ? 'text-success' : '';
+                tr.innerHTML = `
+                    <td>${formatTableDate(item.date)}</td>
+                    <td>${item.ref || '-'}</td>
+                    <td style="max-width:350px; overflow:hidden; text-overflow:ellipsis;" title="${item.original_row[descCol]}">${item.original_row[descCol]}</td>
+                    <td class="text-right ${amtClass}">${formatCurrency(item.amount)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderTableExtra(descCol) {
+            let tbody = document.querySelector('#tableExtra tbody');
+            tbody.innerHTML = '';
+            let data = reconciliationResults.unmatchedRegister;
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:2rem; color:var(--text-muted);">No outstanding extra transactions in register.</td></tr>`;
+                return;
+            }
+            data.forEach(item => {
+                let tr = document.createElement('tr');
+                let amtClass = item.amount >= 0 ? 'text-success' : '';
+                tr.innerHTML = `
+                    <td>${formatTableDate(item.date)}</td>
+                    <td>${item.ref || '-'}</td>
+                    <td style="max-width:350px; overflow:hidden; text-overflow:ellipsis;" title="${item.original_row[descCol]}">${item.original_row[descCol]}</td>
+                    <td class="text-right ${amtClass}">${formatCurrency(item.amount)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderTableMatched(qbDescCol, bankDescCol) {
+            let tbody = document.querySelector('#tableMatched tbody');
+            tbody.innerHTML = '';
+            let data = reconciliationResults.matched;
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--text-muted);">No reconciled matches found yet.</td></tr>`;
+                return;
+            }
+            data.forEach(pair => {
+                let tr = document.createElement('tr');
+                let bankAmtClass = pair.bank.amount >= 0 ? 'text-success' : '';
+                tr.innerHTML = `
+                    <td>${formatTableDate(pair.register.date)}</td>
+                    <td>${pair.register.ref || '-'}</td>
+                    <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis;" title="${pair.register.original_row[qbDescCol]}">${pair.register.original_row[qbDescCol]}</td>
+                    
+                    <td class="cell-divider"></td>
+                    
+                    <td>${formatTableDate(pair.bank.date)}</td>
+                    <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis;" title="${pair.bank.original_row[bankDescCol]}">${pair.bank.original_row[bankDescCol]}</td>
+                    <td class="text-right ${bankAmtClass}">${formatCurrency(pair.bank.amount)}</td>
+                    
+                    <td style="font-size:0.75rem; color:var(--text-secondary); max-width:250px; white-space:normal;">
+                        <span style="font-weight:600; display:block;">${pair.match_type}</span>
+                        <span>${pair.details}</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Tabs Toggle
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+            });
+        });
+
+        // Search text filters
+        function setupSearchFilter(searchInput, tbodySelector) {
+            searchInput.addEventListener('keyup', () => {
+                let q = searchInput.value.toLowerCase().trim();
+                let rows = document.querySelectorAll(`${tbodySelector} tr`);
+                rows.forEach(r => {
+                    if (r.cells.length === 1) return; // ignore placeholders
+                    let text = r.textContent.toLowerCase();
+                    r.style.display = text.includes(q) ? '' : 'none';
+                });
+            });
+        }
+        setupSearchFilter(document.getElementById('searchMissing'), '#tableMissing tbody');
+        setupSearchFilter(document.getElementById('searchExtra'), '#tableExtra tbody');
+        setupSearchFilter(document.getElementById('searchMatched'), '#tableMatched tbody');
+
+        // Excel sheet downloader
+        btnExport.addEventListener('click', () => {
+            if (!reconciliationResults) {
+                alert("Nothing to export. Run reconciliation first.");
+                return;
+            }
+            
+            showLoading("Generating Excel workbook client-side...");
+            setTimeout(() => {
+                try {
+                    const wb = XLSX.utils.book_new();
+                    
+                    // 1. Dashboard sheet
+                    const summaryData = [
+                        { "Metric": "Total QuickBooks Register Transactions", "Value": reconciliationResults.stats.totalRegister },
+                        { "Metric": "Total Bank Statement Transactions", "Value": reconciliationResults.stats.totalBank },
+                        { "Metric": "Successfully Matched Transactions", "Value": reconciliationResults.stats.matchedCount },
+                        { "Metric": "Missing in QuickBooks (Present in Bank only)", "Value": reconciliationResults.stats.unmatchedBankCount },
+                        { "Metric": "Extra in QuickBooks (Present in Register only)", "Value": reconciliationResults.stats.unmatchedRegisterCount },
+                        { "Metric": "Reconciliation Match Rate (by count)", "Value": `${reconciliationResults.stats.matchRate}%` },
+                        { "Metric": "Total Reconciled Amount", "Value": reconciliationResults.stats.totalReconciledAmount },
+                        { "Metric": "Net Value of Extra QBD Transactions", "Value": reconciliationResults.stats.netUnmatchedRegister },
+                        { "Metric": "Net Value of Missing Bank Transactions", "Value": reconciliationResults.stats.netUnmatchedBank },
+                        { "Metric": "Report Generated Time", "Value": new Date().toLocaleString() }
+                    ];
+                    const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+                    XLSX.utils.book_append_sheet(wb, wsSummary, "Summary Dashboard");
+                    
+                    // Helper to format table rows
+                    const makeExportRows = (records, isPair) => {
+                        if (records.length === 0) return [{ "Status": "No data available" }];
+                        return records.map(item => {
+                            if (isPair) {
+                                let rowData = {};
+                                for (let k in item.register.original_row) {
+                                    rowData[`QB_${k}`] = item.register.original_row[k];
+                                }
+                                rowData["Match_Type"] = item.match_type;
+                                rowData["Match_Details"] = item.details;
+                                for (let k in item.bank.original_row) {
+                                    rowData[`Bank_${k}`] = item.bank.original_row[k];
+                                }
+                                return rowData;
+                            } else {
+                                let rowData = { ...item.original_row };
+                                rowData["Parsed_Date"] = formatTableDate(item.date);
+                                rowData["Parsed_Amount"] = item.amount;
+                                return rowData;
+                            }
+                        });
+                    };
+                    
+                    const wsMissing = XLSX.utils.json_to_sheet(makeExportRows(reconciliationResults.unmatchedBank, false));
+                    XLSX.utils.book_append_sheet(wb, wsMissing, "Missing in QuickBooks");
+                    
+                    const wsExtra = XLSX.utils.json_to_sheet(makeExportRows(reconciliationResults.unmatchedRegister, false));
+                    XLSX.utils.book_append_sheet(wb, wsExtra, "Extra in QuickBooks");
+                    
+                    const wsMatched = XLSX.utils.json_to_sheet(makeExportRows(reconciliationResults.matched, true));
+                    XLSX.utils.book_append_sheet(wb, wsMatched, "Reconciled Matches");
+                    
+                    // Auto fit columns widths
+                    const fitWidths = (ws) => {
+                        if (!ws['!ref']) return;
+                        const range = XLSX.utils.decode_range(ws['!ref']);
+                        let colWidths = [];
+                        for (let C = range.s.c; C <= range.e.c; ++C) {
+                            let maxLen = 10;
+                            for (let R = range.s.r; R <= range.e.r; ++R) {
+                                const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+                                if (cell && cell.v) {
+                                    maxLen = Math.max(maxLen, String(cell.v).length);
+                                }
+                            }
+                            colWidths.push({ wch: maxLen + 3 });
+                        }
+                        ws['!cols'] = colWidths;
+                    };
+                    
+                    fitWidths(wsSummary);
+                    fitWidths(wsMissing);
+                    fitWidths(wsExtra);
+                    fitWidths(wsMatched);
+                    
+                    XLSX.writeFile(wb, "Reconciliation_Report.xlsx");
+                    hideLoading();
+                } catch (e) {
+                    hideLoading();
+                    alert(`Failed to write Excel file: ${e.message}`);
+                }
+            }, 100);
+        });
+
+        // Modal triggers
+        function showLoading(msg) {
+            modalMsg.textContent = msg;
+            loadingModal.classList.add('active');
+        }
+        function hideLoading() {
+            loadingModal.classList.remove('active');
+        }
+    </script>
+</body>
+</html>

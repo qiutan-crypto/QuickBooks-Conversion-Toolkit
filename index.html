@@ -175,10 +175,11 @@
     <div class="header-inner">
       <div>
         <h1>QuickBooks Conversion Toolkit</h1>
-        <p class="subtitle">One entry point for QBD workflow prep and QBO/OFX to CSV conversion.</p>
+        <p class="subtitle">One entry point for QBD workflow prep, reconciliation, and QBO/OFX to CSV conversion.</p>
       </div>
       <nav class="tabs" aria-label="Conversion tools">
         <button class="tab active" type="button" data-tool="qbd">QBD to QBO Prep</button>
+        <button class="tab" type="button" data-tool="reconcile">QBD Reconciler</button>
         <button class="tab" type="button" data-tool="qbo">QBO to CSV</button>
       </nav>
     </div>
@@ -204,6 +205,11 @@
         title: 'QBD to QBO Prep',
         description: 'Normalize QuickBooks Desktop exports, generate chart of accounts files, create bank rules, split monthly imports, and build leftover rules.',
         src: 'qbd2qbo.html'
+      },
+      reconcile: {
+        title: 'QBD Reconciler',
+        description: 'Compare QuickBooks Desktop register data against bank activity, identify matched and unmatched transactions, and export reconciliation results.',
+        src: 'qbd-reconciler.html'
       },
       qbo: {
         title: 'QBO to CSV',
